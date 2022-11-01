@@ -1,3 +1,7 @@
 [submodule "robosuite-benchmark"]
 	path = robosuite-benchmark
 	url = https://github.com/ARISE-Initiative/robosuite-benchmark.git
+
+[submodule "viskit"]
+	path = viskit
+	url = https://github.com/vitchyr/viskit.git
