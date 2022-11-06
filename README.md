@@ -23,7 +23,7 @@ the command, https://mujoco.readthedocs.io/en/latest/programming.html#getting-st
  
  ```shell
    cd ~
-   mkvirtualenv robosuite -p python3
+   mkvirtualenv --python=/usr/bin/python3 robosuite
   ```
    To load this environment use:
    
