@@ -6,12 +6,16 @@ import torch as th
 from torch.nn import functional as F
 
 from stable_baselines3.common.buffers import ReplayBuffer
-from stable_baselines3.common.noise import ActionNoise
 from stable_baselines3.common.off_policy_algorithm import OffPolicyAlgorithm
 from stable_baselines3.common.policies import BasePolicy
 from stable_baselines3.common.type_aliases import GymEnv, MaybeCallback, Schedule
 from stable_baselines3.common.utils import get_parameters_by_name, polyak_update
 from stable_baselines3.sac.policies import CnnPolicy, MlpPolicy, MultiInputPolicy, SACPolicy
+from stable_baselines3.common.callbacks import BaseCallback
+from stable_baselines3.common.noise import ActionNoise, VectorizedActionNoise
+from stable_baselines3.common.type_aliases import RolloutReturn, TrainFreq, TrainFrequencyUnit
+from stable_baselines3.common.utils import should_collect_more_steps
+from stable_baselines3.common.vec_env import VecEnv
 
 from copy import deepcopy
 
@@ -48,9 +52,7 @@ def policy_reuse(old_policy:BasePolicy, env:GymEnv, K, H, phi, mu, gamma, alpha)
     return w, new_policy
         
     
-
-
-class SAC(OffPolicyAlgorithm):
+class SACPolicyReuse(OffPolicyAlgorithm):
     """
     Soft Actor-Critic (SAC)
     Off-Policy Maximum Entropy Deep Reinforcement Learning with a Stochastic Actor,
@@ -142,10 +144,12 @@ class SAC(OffPolicyAlgorithm):
         seed: Optional[int] = None,
         device: Union[th.device, str] = "auto",
         _init_setup_model: bool = True,
+        old_policy: SACPolicy = None,
         reuse_gamma: float = 0.95,
         reuse_alpha: float = 0.05,
         reuse_phi: float = 1.0,
         reuse_mu: float = 0.95,
+        max_reuse_steps: int = 50,
     ):
 
         super().__init__(
@@ -183,15 +187,184 @@ class SAC(OffPolicyAlgorithm):
         self.target_update_interval = target_update_interval
         self.ent_coef_optimizer = None
         
+        # Policy Reuse Parameters
         self.reuse_gamma = reuse_gamma
         self.reuse_alpha = reuse_alpha
+        self.reuse_initial_phi = reuse_phi
         self.reuse_phi = reuse_phi
         self.reuse_mu = reuse_mu
+        self.max_reuse_steps = max_reuse_steps
         
-        self.old_policy = deepcopy(self.policy)
+        self.old_policy = deepcopy(old_policy)
 
         if _init_setup_model:
             self._setup_model()
+            
+            
+    def _sample_action(
+        self,
+        learning_starts: int,
+        action_noise: Optional[ActionNoise] = None,
+        n_envs: int = 1,
+        ) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Sample an action according to the exploration policy.
+        This is either done by sampling the probability distribution of the policy,
+        or sampling a random action (from a uniform distribution over the action space)
+        or by adding noise to the deterministic output.
+        :param action_noise: Action noise that will be used for exploration
+            Required for deterministic policy (e.g. TD3). This can also be used
+            in addition to the stochastic policy for SAC.
+        :param learning_starts: Number of steps before learning for the warm-up phase.
+        :param n_envs:
+        :return: action to take in the environment
+            and scaled action that will be stored in the replay buffer.
+            The two differs when the action space is not normalized (bounds are not [-1, 1]).
+        """
+        
+        # Reset phi for every max_reuse_steps iterations
+        if self.num_timesteps % self.max_reuse_steps == 0:
+            self.reuse_phi = self.reuse_initial_phi
+        
+        # Select action randomly or according to policy
+        if self.num_timesteps < learning_starts and not (self.use_sde and self.use_sde_at_warmup):
+            # Warmup phase
+            unscaled_action = np.array([self.action_space.sample() for _ in range(n_envs)])
+        else:
+            # With probability phi use old policy
+            if np.random.rand() < self.reuse_phi:       
+                unscaled_action, _ = self.old_policy.predict(self._last_obs, deterministic=False)
+            else:
+                # Epsilon Greedy
+                # With probability epsilon choose greedy(new) policy otherwise use random one
+                epsilon = 1 - self.reuse_phi
+                if np.random.rand() < epsilon:
+                    unscaled_action, _ = self.predict(self._last_obs, deterministic=False)            
+                else:
+                    unscaled_action = np.array([np.random.rand(self.env.action_space.shape[0]) for _ in range(n_envs)])
+                    
+            # Update Policy Reuse phi
+            self.reuse_phi = self.reuse_phi * self.reuse_mu
+
+        # Rescale the action from [low, high] to [-1, 1]
+        if isinstance(self.action_space, gym.spaces.Box):
+            scaled_action = self.policy.scale_action(unscaled_action)
+
+            # Add noise to the action (improve exploration)
+            if action_noise is not None:
+                scaled_action = np.clip(scaled_action + action_noise(), -1, 1)
+
+            # We store the scaled action in the buffer
+            buffer_action = scaled_action
+            action = self.policy.unscale_action(scaled_action)
+        else:
+            # Discrete case, no need to normalize or clip
+            buffer_action = unscaled_action
+            action = buffer_action
+        return action, buffer_action
+    
+    
+    def collect_rollouts(
+        self,
+        env: VecEnv,
+        callback: BaseCallback,
+        train_freq: TrainFreq,
+        replay_buffer: ReplayBuffer,
+        action_noise: Optional[ActionNoise] = None,
+        learning_starts: int = 0,
+        log_interval: Optional[int] = None,
+        ) -> RolloutReturn:
+        """
+        Collect experiences and store them into a ``ReplayBuffer``.
+        :param env: The training environment
+        :param callback: Callback that will be called at each step
+            (and at the beginning and end of the rollout)
+        :param train_freq: How much experience to collect
+            by doing rollouts of current policy.
+            Either ``TrainFreq(<n>, TrainFrequencyUnit.STEP)``
+            or ``TrainFreq(<n>, TrainFrequencyUnit.EPISODE)``
+            with ``<n>`` being an integer greater than 0.
+        :param action_noise: Action noise that will be used for exploration
+            Required for deterministic policy (e.g. TD3). This can also be used
+            in addition to the stochastic policy for SAC.
+        :param learning_starts: Number of steps before learning for the warm-up phase.
+        :param replay_buffer:
+        :param log_interval: Log data every ``log_interval`` episodes
+        :return:
+        """
+        # Switch to eval mode (this affects batch norm / dropout)
+        self.policy.set_training_mode(False)
+
+        num_collected_steps, num_collected_episodes = 0, 0
+
+        assert isinstance(env, VecEnv), "You must pass a VecEnv"
+        assert train_freq.frequency > 0, "Should at least collect one step or episode."
+
+        if env.num_envs > 1:
+            assert train_freq.unit == TrainFrequencyUnit.STEP, "You must use only one env when doing episodic training."
+
+        # Vectorize action noise if needed
+        if action_noise is not None and env.num_envs > 1 and not isinstance(action_noise, VectorizedActionNoise):
+            action_noise = VectorizedActionNoise(action_noise, env.num_envs)
+
+        if self.use_sde:
+            self.actor.reset_noise(env.num_envs)
+
+        callback.on_rollout_start()
+        continue_training = True
+
+        while should_collect_more_steps(train_freq, num_collected_steps, num_collected_episodes):
+            if self.use_sde and self.sde_sample_freq > 0 and num_collected_steps % self.sde_sample_freq == 0:
+                # Sample a new noise matrix
+                self.actor.reset_noise(env.num_envs)
+
+            # Select action randomly or according to policy
+            actions, buffer_actions = self._sample_action(learning_starts, action_noise, env.num_envs)
+
+            # Rescale and perform action
+            new_obs, rewards, dones, infos = env.step(actions)
+
+            self.num_timesteps += env.num_envs
+            num_collected_steps += 1
+
+            # Give access to local variables
+            callback.update_locals(locals())
+            # Only stop training if return value is False, not when it is None.
+            if callback.on_step() is False:
+                return RolloutReturn(num_collected_steps * env.num_envs, num_collected_episodes, continue_training=False)
+
+            # Retrieve reward and episode length if using Monitor wrapper
+            self._update_info_buffer(infos, dones)
+
+            # Store data in replay buffer (normalized action and unnormalized observation)
+            self._store_transition(replay_buffer, buffer_actions, new_obs, rewards, dones, infos)
+
+            self._update_current_progress_remaining(self.num_timesteps, self._total_timesteps)
+
+            # For DQN, check if the target network should be updated
+            # and update the exploration schedule
+            # For SAC/TD3, the update is dones as the same time as the gradient update
+            # see https://github.com/hill-a/stable-baselines/issues/900
+            self._on_step()
+
+            for idx, done in enumerate(dones):
+                if done:
+                    # Update stats
+                    num_collected_episodes += 1
+                    self._episode_num += 1
+
+                    if action_noise is not None:
+                        kwargs = dict(indices=[idx]) if env.num_envs > 1 else {}
+                        action_noise.reset(**kwargs)
+
+                    # Log training infos
+                    if log_interval is not None and self._episode_num % log_interval == 0:
+                        self._dump_logs()
+
+        callback.on_rollout_end()
+
+        return RolloutReturn(num_collected_steps * env.num_envs, num_collected_episodes, continue_training)
+
 
     def _setup_model(self) -> None:
         super()._setup_model()
