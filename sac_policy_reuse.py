@@ -40,7 +40,8 @@ def policy_reuse(old_policy:BasePolicy, env:GymEnv, K, H, phi, mu, gamma, alpha)
                 obs, reward, done, info = env.step(actions)
                 w = w + w_gamma * reward
                 w_gamma *= gamma
-                new_policy = ((1-alpha) * new_policy + alpha * (reward + gamma * np.max(new_policy)))
+                #TODO: update SAC policy following PR algo
+                #new_policy = ((1-alpha) * new_policy + alpha * (reward + gamma * np.max(new_policy)))
                 phi = phi*mu
         w = w / K
         
