@@ -13,7 +13,7 @@ from robosuite.utils.placement_samplers import SequentialCompositeSampler, Unifo
 from robosuite.utils.transform_utils import convert_quat
 
 
-class LiftAndPlaceWithTerminals(SingleArmEnv):
+class LiftAndPlaceBarrier(SingleArmEnv):
     """
     This class corresponds to the lifting and placing task for a single robot arm.
 
@@ -162,9 +162,9 @@ class LiftAndPlaceWithTerminals(SingleArmEnv):
         camera_heights=256,
         camera_widths=256,
         camera_depths=False,
-        camera_segmentations=None,  # {None, instance, class, element}
-        renderer="mujoco",
-        renderer_config=None,
+        #camera_segmentations=None,  # {None, instance, class, element}
+        #renderer="mujoco",
+        #renderer_config=None,
     ):
         # settings for table top
         self.table_full_size = table_full_size
@@ -182,8 +182,6 @@ class LiftAndPlaceWithTerminals(SingleArmEnv):
         self.placement_initializer = placement_initializer
         self.placement_initializer_target = placement_initializer
 
-        # collision has occurred
-        self.collision_has_occurred = False
 
         super().__init__(
             robots=robots,
@@ -240,8 +238,6 @@ class LiftAndPlaceWithTerminals(SingleArmEnv):
         """
         reward = 0.0
 
-        # check gripper contact with table
-        self.collision_has_occurred = self.check_contact(self.robots[0].gripper, "table_collision")
 
         # sparse completion reward
         if self._check_placing_cube():
@@ -250,47 +246,32 @@ class LiftAndPlaceWithTerminals(SingleArmEnv):
         # use a shaping reward
         elif self.reward_shaping:
 
-            if self.collision_has_occurred:
-                reward += -1.0
-            else:
+            # reaching reward
+            cube_pos = self.sim.data.body_xpos[self.cube_body_id]
+            gripper_site_pos = self.sim.data.site_xpos[self.robots[0].eef_site_id]
+            dist = np.linalg.norm(gripper_site_pos - cube_pos)
+            reaching_reward = 1 - np.tanh(10.0 * dist)
+            reward += reaching_reward
 
-                # reaching reward
-                cube_pos = self.sim.data.body_xpos[self.cube_body_id]
-                gripper_site_pos = self.sim.data.site_xpos[self.robots[0].eef_site_id]
-                dist = np.linalg.norm(gripper_site_pos - cube_pos)
-                reaching_reward = 1 - np.tanh(10.0 * dist)
-                reward += reaching_reward
+            # grasping reward
+            if self._check_grasp(gripper=self.robots[0].gripper, object_geoms=self.cube):
+                reward += 0.25
 
-                # grasping reward
-                if self._check_grasp(gripper=self.robots[0].gripper, object_geoms=self.cube):
-                    reward += 0.25
+            # lifting reward
+            if self._check_success():
+                reward += 0.50
 
-                # lifting reward
-                if self._check_success():
-                    reward += 0.50
-
-                # placing reward position
-                target_pos = self.sim.data.body_xpos[self.target_body_id]
-                dist = np.linalg.norm(target_pos - cube_pos)
-                placing_pos_reward = 1 - np.tanh(10.0 * dist)
-                reward += placing_pos_reward
+            # placing reward position
+            target_pos = self.sim.data.body_xpos[self.target_body_id]
+            dist = np.linalg.norm(target_pos - cube_pos)
+            placing_pos_reward = 1 - np.tanh(10.0 * dist)
+            reward += placing_pos_reward
 
         # Scale reward if requested
         if self.reward_scale is not None:
             reward *= self.reward_scale / 3.25
 
         return reward
-
-    # Check Gripper contact with table
-    def check_contact(self, geoms_1, geoms_2=None):
-        table_contacted = super().check_contact(geoms_1, geoms_2)
-
-        if table_contacted:
-            #print("TABLE CONTACTED")
-            collision_has_occurred = True
-        else:
-            collision_has_occurred = False
-        return collision_has_occurred
 
     def _load_model(self):
         """
@@ -338,8 +319,17 @@ class LiftAndPlaceWithTerminals(SingleArmEnv):
 
         self.target = CylinderObject(
             name="target",
-            size=[0.07, 0.008],
+            size=[0.06, 0.008],
             rgba=[0, 1, 0, 1],
+            friction=[3, 3, 3],
+            joints=[{"type": "free", "damping": "0.1"}],
+        )
+
+        self.barrier = BoxObject(
+            name="barrier",
+            size=[0.4, 0.02, 0.03],  # [0.015, 0.015, 0.015],
+            rgba=[0, 0, 1, 1],
+            friction=[6, 6, 6],
         )
 
         self.placement_initializer = SequentialCompositeSampler(name="ObjectSampler")
@@ -360,59 +350,38 @@ class LiftAndPlaceWithTerminals(SingleArmEnv):
 
         self.placement_initializer.append_sampler(
             sampler=UniformRandomSampler(
-                name="TargetObjectSampler",
-                mujoco_objects=[self.target],
-                x_range=[0.04, 0.04],
-                y_range=[-0.25, -0.25],
-                rotation=None,
+                name="BarrierObjectSampler",
+                mujoco_objects=[self.barrier],
+                x_range=[0.0, 0.0],
+                y_range=[-0.15, -0.15],
+                rotation_axis="z",
+                rotation=[0, 0, -0.05],
                 ensure_object_boundary_in_range=False,
-                ensure_valid_placement=True,
+                ensure_valid_placement=False,
                 reference_pos=self.table_offset,
                 z_offset=0.01,
             )
         )
 
-
-        # Create placement initializer
-        # if self.placement_initializer is not None:
-        #     self.placement_initializer.reset()
-        #     self.placement_initializer.add_objects(self.cube)
-        # else:
-        #     self.placement_initializer = UniformRandomSampler(
-        #         name="ObjectSampler",
-        #         mujoco_objects=[self.cube],
-        #         x_range=[-0.03, 0.03],
-        #         y_range=[-0.03, 0.03],
-        #         rotation=None,
-        #         ensure_object_boundary_in_range=False,
-        #         ensure_valid_placement=True,
-        #         reference_pos=self.table_offset,
-        #         z_offset=0.01,
-        #     )
-
-        # Create target placement initializer
-        # if self.placement_initializer_target is not None:
-        #     self.placement_initializer_target.reset()
-        #     self.placement_initializer_target.add_objects(self.target)
-        # else:
-        #     self.placement_initializer_target = UniformRandomSampler(
-        #         name="TargetObjectSampler",
-        #         mujoco_objects=[self.target],
-        #         x_range=[0.1, 0.1],
-        #         y_range=[-0.6, -0.6],
-        #         rotation=None,
-        #         ensure_object_boundary_in_range=False,
-        #         ensure_valid_placement=True,
-        #         reference_pos=self.table_offset,
-        #         z_offset=0.1,
-        #     )
-
+        self.placement_initializer.append_sampler(
+            sampler=UniformRandomSampler(
+                name="TargetObjectSampler",
+                mujoco_objects=[self.target],
+                x_range=[-0.05, -0.05],
+                y_range=[-0.25, -0.25],
+                rotation=None,
+                ensure_object_boundary_in_range=False,
+                ensure_valid_placement=False,
+                reference_pos=self.table_offset,
+                z_offset=0.01,
+            )
+        )
 
         # task includes arena, robot, and objects of interest
         self.model = ManipulationTask(
             mujoco_arena=mujoco_arena,
             mujoco_robots=[robot.robot_model for robot in self.robots],
-            mujoco_objects=[self.cube, self.target],
+            mujoco_objects=[self.cube, self.target, self.barrier],
         )
 
     def _setup_references(self):
@@ -459,7 +428,20 @@ class LiftAndPlaceWithTerminals(SingleArmEnv):
                     else np.zeros(3)
                 )
 
-            sensors = [cube_pos, cube_quat, gripper_to_cube_pos]
+            # target-related observables
+            @sensor(modality=modality)
+            def target_pos(obs_cache):
+                return np.array(self.sim.data.body_xpos[self.target_body_id])
+
+            @sensor(modality=modality)
+            def target_to_cube_pos(obs_cache):
+                return (
+                    obs_cache["target_pos"] - obs_cache["cube_pos"]
+                    if "target_pos" in obs_cache and "cube_pos" in obs_cache
+                    else np.zeros(3)
+                )
+
+            sensors = [cube_pos, cube_quat, gripper_to_cube_pos, target_pos, target_to_cube_pos]
             names = [s.__name__ for s in sensors]
 
             # Create observables
@@ -526,27 +508,6 @@ class LiftAndPlaceWithTerminals(SingleArmEnv):
         """
 
         return self.check_contact(self.target, self.cube)
-
-
-    def terminate_for_collision(self, info):
-        if info["collision_has_occurred"]:
-            return True
-        return False
-
-    # step function from base.py
-    def step(self, action):
-        observations, reward, done, info = super().step(action)
-
-        if self.terminate_for_collision(info):
-            done = True
-
-        return observations, reward, done, info
-
-    # post action function from base.py
-    def _post_action(self, action):
-        reward, done, info = super()._post_action(action)
-        info["collision_has_occurred"] = self.collision_has_occurred
-        return reward, done, info
 
 
 

@@ -1,18 +1,19 @@
 from collections import OrderedDict
-
 import numpy as np
 
+from robosuite.utils.transform_utils import convert_quat
+from robosuite.utils.mjcf_utils import CustomMaterial
+
 from robosuite.environments.manipulation.single_arm_env import SingleArmEnv
+
 from robosuite.models.arenas import TableArena
 from robosuite.models.objects import BoxObject
 from robosuite.models.tasks import ManipulationTask
-from robosuite.utils.mjcf_utils import CustomMaterial
-from robosuite.utils.observables import Observable, sensor
 from robosuite.utils.placement_samplers import UniformRandomSampler
-from robosuite.utils.transform_utils import convert_quat
+from robosuite.utils.observables import Observable, sensor
 
 
-class LiftWithTerminals(SingleArmEnv):
+class BaseLift(SingleArmEnv):
     """
     This class corresponds to the lifting task for a single robot arm.
 
@@ -117,18 +118,6 @@ class LiftWithTerminals(SingleArmEnv):
             bool if same depth setting is to be used for all cameras or else it should be a list of the same length as
             "camera names" param.
 
-        camera_segmentations (None or str or list of str or list of list of str): Camera segmentation(s) to use
-            for each camera. Valid options are:
-
-                `None`: no segmentation sensor used
-                `'instance'`: segmentation at the class-instance level
-                `'class'`: segmentation at the class level
-                `'element'`: segmentation at the per-geom level
-
-            If not None, multiple types of segmentations can be specified. A [list of str / str or None] specifies
-            [multiple / a single] segmentation(s) to use for all cameras. A list of list of str specifies per-camera
-            segmentation setting(s) to use.
-
     Raises:
         AssertionError: [Invalid number of robots specified]
     """
@@ -141,7 +130,7 @@ class LiftWithTerminals(SingleArmEnv):
         gripper_types="default",
         initialization_noise="default",
         table_full_size=(0.8, 0.8, 0.05),
-        table_friction=(1.0, 5e-3, 1e-4),
+        table_friction=(1., 5e-3, 1e-4),
         use_camera_obs=True,
         use_object_obs=True,
         reward_scale=1.0,
@@ -161,9 +150,6 @@ class LiftWithTerminals(SingleArmEnv):
         camera_heights=256,
         camera_widths=256,
         camera_depths=False,
-        camera_segmentations=None,  # {None, instance, class, element}
-        renderer="mujoco",
-        renderer_config=None,
     ):
         # settings for table top
         self.table_full_size = table_full_size
@@ -179,9 +165,6 @@ class LiftWithTerminals(SingleArmEnv):
 
         # object placement initializer
         self.placement_initializer = placement_initializer
-
-        # collision has occurred
-        self.collision_has_occurred = False
 
         super().__init__(
             robots=robots,
@@ -205,9 +188,6 @@ class LiftWithTerminals(SingleArmEnv):
             camera_heights=camera_heights,
             camera_widths=camera_widths,
             camera_depths=camera_depths,
-            #camera_segmentations=camera_segmentations,
-            #renderer=renderer,
-            #renderer_config=renderer_config,
         )
 
     def reward(self, action=None):
@@ -235,10 +215,7 @@ class LiftWithTerminals(SingleArmEnv):
         Returns:
             float: reward value
         """
-        reward = 0.0
-
-        # check gripper contact with table
-        self.collision_has_occurred = self.check_contact(self.robots[0].gripper, "table_collision")
+        reward = 0.
 
         # sparse completion reward
         if self._check_success():
@@ -247,37 +224,22 @@ class LiftWithTerminals(SingleArmEnv):
         # use a shaping reward
         elif self.reward_shaping:
 
-            if self.collision_has_occurred:
-                reward += -1.0
-            else:
+            # reaching reward
+            cube_pos = self.sim.data.body_xpos[self.cube_body_id]
+            gripper_site_pos = self.sim.data.site_xpos[self.robots[0].eef_site_id]
+            dist = np.linalg.norm(gripper_site_pos - cube_pos)
+            reaching_reward = 1 - np.tanh(10.0 * dist)
+            reward += reaching_reward
 
-                # reaching reward
-                cube_pos = self.sim.data.body_xpos[self.cube_body_id]
-                gripper_site_pos = self.sim.data.site_xpos[self.robots[0].eef_site_id]
-                dist = np.linalg.norm(gripper_site_pos - cube_pos)
-                reaching_reward = 1 - np.tanh(10.0 * dist)
-                reward += reaching_reward
-
-                # grasping reward
-                if self._check_grasp(gripper=self.robots[0].gripper, object_geoms=self.cube):
-                    reward += 0.25
+            # grasping reward
+            if self._check_grasp(gripper=self.robots[0].gripper, object_geoms=self.cube):
+                reward += 0.25
 
         # Scale reward if requested
         if self.reward_scale is not None:
             reward *= self.reward_scale / 2.25
 
         return reward
-
-    # Check Gripper contact with table
-    def check_contact(self, geoms_1, geoms_2=None):
-        table_contacted = super().check_contact(geoms_1, geoms_2)
-
-        if table_contacted:
-            #print("TABLE CONTACTED")
-            collision_has_occurred = True
-        else:
-            collision_has_occurred = False
-        return collision_has_occurred
 
     def _load_model(self):
         """
@@ -343,7 +305,7 @@ class LiftWithTerminals(SingleArmEnv):
         # task includes arena, robot, and objects of interest
         self.model = ManipulationTask(
             mujoco_arena=mujoco_arena,
-            mujoco_robots=[robot.robot_model for robot in self.robots],
+            mujoco_robots=[robot.robot_model for robot in self.robots], 
             mujoco_objects=self.cube,
         )
 
@@ -384,13 +346,19 @@ class LiftWithTerminals(SingleArmEnv):
 
             @sensor(modality=modality)
             def gripper_to_cube_pos(obs_cache):
-                return (
-                    obs_cache[f"{pf}eef_pos"] - obs_cache["cube_pos"]
-                    if f"{pf}eef_pos" in obs_cache and "cube_pos" in obs_cache
-                    else np.zeros(3)
-                )
+                return obs_cache[f"{pf}eef_pos"] - obs_cache["cube_pos"] if \
+                    f"{pf}eef_pos" in obs_cache and "cube_pos" in obs_cache else np.zeros(3)
+                    
+             # target-related observables, 0 for BaseLifet env
+            @sensor(modality=modality)
+            def target_pos(obs_cache):
+                return np.zeros(3)
 
-            sensors = [cube_pos, cube_quat, gripper_to_cube_pos]
+            @sensor(modality=modality)
+            def target_to_cube_pos(obs_cache):
+                return np.zeros(3)
+
+            sensors = [cube_pos, cube_quat, gripper_to_cube_pos, target_pos, target_to_cube_pos]
             names = [s.__name__ for s in sensors]
 
             # Create observables
@@ -447,27 +415,3 @@ class LiftWithTerminals(SingleArmEnv):
 
         # cube is higher than the table top above a margin
         return cube_height > table_height + 0.04
-
-    def terminate_for_collision(self, info):
-        if info["collision_has_occurred"]:
-            return True
-        return False
-
-    # step function from base.py
-    def step(self, action):
-        observations, reward, done, info = super().step(action)
-
-        if self.terminate_for_collision(info):
-            done = True
-
-        return observations, reward, done, info
-
-    # post action function from base.py
-    def _post_action(self, action):
-        reward, done, info = super()._post_action(action)
-        info["collision_has_occurred"] = self.collision_has_occurred
-        return reward, done, info
-
-
-
-
