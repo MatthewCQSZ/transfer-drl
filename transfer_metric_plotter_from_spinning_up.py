@@ -14,6 +14,40 @@ exp_idx = 0
 units = dict()
 
 def plot_data(data, xaxis='Training Time', value="Performance", condition="Condition1", smooth=1, **kwargs):
+    data2 = data
+
+    if isinstance(data2, list):
+        data2 = pd.concat(data2, ignore_index=True)
+    sns.set(style="whitegrid", font_scale=1.5)
+    sns.lineplot(data=data2, x=xaxis, y=value, hue=condition, palette='pastel', legend=False, ci='sd', **kwargs)
+    #sns.tsplot(data=data, time=xaxis, value=value, unit="Unit", condition=condition, ci='sd', **kwargs)
+    """
+    If you upgrade to any version of Seaborn greater than 0.8.1, switch from 
+    tsplot to lineplot replacing L29 with:
+
+        sns.lineplot(data=data, x=xaxis, y=value, hue=condition, ci='sd', **kwargs)
+
+    Changes the colorscheme and the default legend style, though.
+    """
+    #plt.legend(loc='best').set_draggable(True)
+    #plt.legend(loc='upper center', ncol=3, handlelength=1,
+    #           borderaxespad=0., prop={'size': 13})
+
+    """
+    For the version of the legend used in the Spinning Up benchmarking page, 
+    swap L38 with:
+
+    plt.legend(loc='upper center', ncol=6, handlelength=1,
+               mode="expand", borderaxespad=0., prop={'size': 13})
+    """
+
+    xscale = np.max(np.asarray(data2[xaxis])) > 5e3
+    if xscale:
+        # Just some formatting niceness: x-axis scale in scientific notation if max x is large
+        plt.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
+
+    plt.tight_layout(pad=0.5)
+
     if smooth > 1:
         """
         smooth data with moving window average.
@@ -30,8 +64,8 @@ def plot_data(data, xaxis='Training Time', value="Performance", condition="Condi
 
     if isinstance(data, list):
         data = pd.concat(data, ignore_index=True)
-    sns.set(style="darkgrid", font_scale=1.5)
-    sns.lineplot(data=data, x=xaxis, y=value, hue=condition, ci='sd', **kwargs)
+    sns.set(style="whitegrid", font_scale=1.5)
+    sns.lineplot(data=data, x=xaxis, y=value, hue=condition, palette='dark', ci='sd', **kwargs)
     #sns.tsplot(data=data, time=xaxis, value=value, unit="Unit", condition=condition, ci='sd', **kwargs)
     """
     If you upgrade to any version of Seaborn greater than 0.8.1, switch from 
