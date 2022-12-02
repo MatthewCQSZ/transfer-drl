@@ -94,7 +94,7 @@ def plot_data(data, xaxis='Training Time', value="Performance", condition="Condi
 
     plt.tight_layout(pad=0.5)
 
-def get_datasets(logdir, condition=None):
+def get_datasets(logdir, condition=None, sample_count=1210000):
     """
     Recursively look through logdir for output files produced by
     spinup.logx.Logger.
@@ -124,17 +124,18 @@ def get_datasets(logdir, condition=None):
             except:
                 print('Could not read from %s'%os.path.join(root,'progress.csv'))
                 continue
-            #print(exp_data.head())
+            exp_data_shortened = exp_data.loc[exp_data['time/total_timesteps'] < sample_count]
+            #print(exp_data_shortened.shape)
             performance = 'eval/mean_reward'
-            exp_data.insert(len(exp_data.columns), 'Unit', unit)
-            exp_data.insert(len(exp_data.columns), 'Condition1', condition1)
+            exp_data_shortened.insert(len(exp_data_shortened.columns), 'Unit', unit)
+            exp_data_shortened.insert(len(exp_data_shortened.columns), 'Condition1', condition1)
             #exp_data.insert(len(exp_data.columns), 'Condition2', condition2)
-            exp_data.insert(len(exp_data.columns), 'Performance', exp_data[performance])
-            datasets.append(exp_data)
+            exp_data_shortened.insert(len(exp_data_shortened.columns), 'Performance', exp_data_shortened[performance])
+            datasets.append(exp_data_shortened)
     return datasets
 
 
-def get_all_datasets(all_logdirs, legend=None, select=None, exclude=None):
+def get_all_datasets(all_logdirs, legend=None, select=None, exclude=None, sample_count=1210000):
     """
     For every entry in all_logdirs,
         1) check if the entry is a real directory and if it is,
@@ -179,16 +180,16 @@ def get_all_datasets(all_logdirs, legend=None, select=None, exclude=None):
     data = []
     if legend:
         for log, leg in zip(logdirs, legend):
-            data += get_datasets(log, leg)
+            data += get_datasets(log, leg, sample_count)
     else:
         for log in logdirs:
-            data += get_datasets(log)
+            data += get_datasets(log, sample_count)
     return data
 
 
 def make_plots(all_logdirs, legend=None, xaxis=None, values=None, count=False,
-               font_scale=1.5, smooth=1, select=None, exclude=None, estimator='mean'):
-    data = get_all_datasets(all_logdirs, legend, select, exclude)
+               font_scale=1.5, smooth=1, select=None, exclude=None, estimator='mean', sample_count=1210000):
+    data = get_all_datasets(all_logdirs, legend, select, exclude, sample_count)
     values = values if isinstance(values, list) else [values]
     condition = 'Condition1'
     estimator = getattr(np, estimator)      # choose what to show on main curve: mean? max? min?
@@ -205,6 +206,7 @@ def main():
     parser.add_argument('--transfer_logdir', nargs='*')
     parser.add_argument('--legend', '-l', nargs='*')
     parser.add_argument('--xaxis', '-x', default='time/total_timesteps')
+    parser.add_argument('--sample_count', type=int, default=1210000)
     parser.add_argument('--value', '-y', default='Performance', nargs='*')
     parser.add_argument('--count', action='store_true')
     parser.add_argument('--smooth', '-s', type=int, default=1)
@@ -234,7 +236,10 @@ def main():
             rules (below).)
 
         xaxis (string): Pick what column from data is used for the x-axis.
-             Defaults to ``TotalEnvInteracts``.
+             Defaults to ``time/total_timesteps``.
+             
+        sample_count (int): number of total_timesteps to pull from the given
+             data.
 
         value (strings): Pick what columns from data to graph on the y-axis. 
             Submitting multiple values will produce multiple graphs. Defaults
@@ -267,7 +272,7 @@ def main():
 
     make_plots(logdir, args.legend, args.xaxis, args.value, args.count,
                smooth=args.smooth, select=args.select, exclude=args.exclude,
-               estimator=args.est)
+               estimator=args.est, sample_count=args.sample_count)
 
 if __name__ == "__main__":
     main()
