@@ -13,7 +13,31 @@ DIV_LINE_WIDTH = 50
 exp_idx = 0
 units = dict()
 
-def plot_data(data, xaxis='Training Time', value="Performance", condition="Condition1", smooth=1, **kwargs):
+
+def plot_transfer_metrics(data, xaxis='time/total_timesteps', value="Performance", condition="Condition1", smooth=1,
+                          sample_count=1210000, **kwargs):
+    global threshold_idx
+    data2 = data
+    if isinstance(data2, list):
+        data2 = pd.concat(data2, ignore_index=True)
+    sample_count = 1140000
+    #print(data2.loc[data2['time/total_timesteps'] == sample_count])
+    line = sns.lineplot(data=data2.loc[data2['time/total_timesteps'] == 0], x=xaxis, y=value,
+                        color='black', palette='bright', legend=False, style='time/total_timesteps', estimator=None, linewidth='2.5')
+    line.annotate(' Jumpstart', xy=(0, 10))
+    line2 = sns.lineplot(data=data2.loc[data2['time/total_timesteps'] == sample_count], x=xaxis, y=value,
+                  color='black', palette='bright', legend=False, style='time/total_timesteps', estimator=None, linewidth='2.5')
+    line2.annotate(' Asymptotic Performance', xy=(sample_count, 150))
+
+    # threshold_one_condition = data2.loc[data2[condition] == 'No_Transfer_Method']
+    # threshold_one_condition[value] = 300
+    # threshold = threshold_one_condition.copy()
+    # line3 = sns.lineplot(data=threshold, x=xaxis, y=value, hue=condition,
+    #                      color='black', palette='bright', legend=False, style='time/total_timesteps', estimator=None, linewidth='2.5')
+    # line3.annotate(' Threshold Performance', xy=(0, 305))
+
+
+def plot_data(data, xaxis='time/total_timesteps', value="Performance", condition="Condition1", smooth=1, **kwargs):
     data2 = data
 
     if isinstance(data2, list):
@@ -183,7 +207,7 @@ def get_all_datasets(all_logdirs, legend=None, select=None, exclude=None, sample
             data += get_datasets(log, leg, sample_count)
     else:
         for log in logdirs:
-            data += get_datasets(log, sample_count)
+            data += get_datasets(log, None, sample_count)
     return data
 
 
@@ -195,7 +219,10 @@ def make_plots(all_logdirs, legend=None, xaxis=None, values=None, count=False,
     estimator = getattr(np, estimator)      # choose what to show on main curve: mean? max? min?
     for value in values:
         plt.figure()
+        plot_transfer_metrics(data, xaxis=xaxis, value=value, condition=condition, smooth=smooth, estimator=estimator,
+                              sample_count=sample_count)
         plot_data(data, xaxis=xaxis, value=value, condition=condition, smooth=smooth, estimator=estimator)
+
     plt.show()
 
 
@@ -267,7 +294,7 @@ def main():
             curves from logdirs that do not contain these substrings.
 
     """
-    print("no transfer log: ", args.no_transfer_logdir)
+    #print("no transfer log: ", args.no_transfer_logdir)
     logdir = [args.no_transfer_logdir[0], args.transfer_logdir[0]]
 
     make_plots(logdir, args.legend, args.xaxis, args.value, args.count,
