@@ -1,4 +1,4 @@
-# Code taken from https://github.com/openai/spinningup/blob/master/spinup/utils/plot.py
+# Code taken from https://github.com/openai/spinningup/blob/master/spinup/utils/plot.py modified by Charles Meehan
 import seaborn as sns
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -16,25 +16,29 @@ units = dict()
 
 def plot_transfer_metrics(data, xaxis='time/total_timesteps', value="Performance", condition="Condition1", smooth=1,
                           sample_count=1210000, **kwargs):
-    global threshold_idx
     data2 = data
     if isinstance(data2, list):
         data2 = pd.concat(data2, ignore_index=True)
-    sample_count = 1140000
-    #print(data2.loc[data2['time/total_timesteps'] == sample_count])
-    line = sns.lineplot(data=data2.loc[data2['time/total_timesteps'] == 0], x=xaxis, y=value,
+
+    # Jumpstart Performance Metric Line plot
+    line = sns.lineplot(data=data2.loc[data2['time/total_timesteps'] == 500], x=xaxis, y=value,
                         color='black', palette='bright', legend=False, style='time/total_timesteps', estimator=None, linewidth='2.5')
     line.annotate(' Jumpstart', xy=(0, 10))
-    line2 = sns.lineplot(data=data2.loc[data2['time/total_timesteps'] == sample_count], x=xaxis, y=value,
-                  color='black', palette='bright', legend=False, style='time/total_timesteps', estimator=None, linewidth='2.5')
-    line2.annotate(' Asymptotic Performance', xy=(sample_count, 150))
 
-    # threshold_one_condition = data2.loc[data2[condition] == 'No_Transfer_Method']
-    # threshold_one_condition[value] = 300
-    # threshold = threshold_one_condition.copy()
-    # line3 = sns.lineplot(data=threshold, x=xaxis, y=value, hue=condition,
-    #                      color='black', palette='bright', legend=False, style='time/total_timesteps', estimator=None, linewidth='2.5')
-    # line3.annotate(' Threshold Performance', xy=(0, 305))
+    # Asymptotic Performance Metric Line plot
+    last_timestep = data2.tail(1)['time/total_timesteps']
+    last_value = data2.tail(1)[value]
+    line2 = sns.lineplot(data=data2.loc[data2['time/total_timesteps'] == last_timestep.iloc[0]], x=xaxis, y=value,
+                  color='black', palette='bright', legend=False, style='time/total_timesteps', estimator=None, linewidth='2.5')
+    line2.annotate(' Asymptotic Performance', xy=(last_timestep.iloc[0], last_value.iloc[0]))
+
+    # Threshold Performance horizontal line plot
+    kwargs.pop("estimator")
+    kwargs.update({"label": "Threshold Performance"})
+    kwargs.update({"color": "black"})
+    kwargs.update({"ls": "--"})
+    line2.axhline(350, **kwargs) # 150 for Lift and place; 350 for Lift
+
 
 
 def plot_data(data, xaxis='time/total_timesteps', value="Performance", condition="Condition1", smooth=1, **kwargs):
