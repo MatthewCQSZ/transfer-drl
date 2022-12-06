@@ -1,5 +1,9 @@
-# Base code taken from https://github.com/openai/spinningup/blob/master/spinup/utils/plot.py,
-# all transfer learning metrics related work added by Charles Meehan
+"""
+Base code taken from https://github.com/openai/spinningup/blob/master/spinup/utils/plot.py,
+Modified base code to work with pulling transfer learning results and
+all transfer learning metrics related work added by Charles Meehan
+"""
+
 import seaborn as sns
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -19,13 +23,19 @@ units = dict()
 
 def plot_transfer_metrics(data, xaxis='time/total_timesteps', value="Performance", condition="Condition1", smooth=1,
                           sample_count=1210000, threshold=350, **kwargs):
+    """
+    Plotting function for transfer metrics.
+    :return: Transfer metrics plotted on top of reward lines. Also creates a csv file with transfer metrics saved to
+    the file.
+    """
+
+    # Dictionary and then dataframe to hold transfer metric results
     transfer_metrics_dict = {'Condition': ['No Transfer Method', 'Transfer Method', 'One Metric Only'],
                              'Jumpstart Performance': ['NA', 'NA', 0],
                              'Asymptotic Performance': ['NA', 'NA', 0],
                              'Time to Threshold': [0, 0, 'NA'],
                              'Total Rewards': [0, 0, 'NA']}
     transfer_metrics_dataframe = pd.DataFrame.from_dict(transfer_metrics_dict)
-    #print(transfer_metrics_dataframe)
     data2 = data
     if isinstance(data2, list):
         data2 = pd.concat(data2, ignore_index=True)
@@ -41,7 +51,6 @@ def plot_transfer_metrics(data, xaxis='time/total_timesteps', value="Performance
                               list(jumpstart_data.loc[jumpstart_data['Condition1'] == 'No_Transfer_Method'][value])[0]
     print('Jumpstart Performance: ', transfer_jumpstart_perf)
     transfer_metrics_dataframe.at[2, 'Jumpstart Performance'] = transfer_jumpstart_perf
-    #print(transfer_metrics_dataframe)
 
     # Asymptotic Performance Metric Line plot
     last_timestep = data2.tail(1)['time/total_timesteps']
@@ -84,28 +93,23 @@ def plot_transfer_metrics(data, xaxis='time/total_timesteps', value="Performance
         print("Time to Threshold for Transfer Method (total timesteps): ", time_to_thresh_transfer)
         transfer_metrics_dataframe.at[1, 'Time to Threshold'] = time_to_thresh_transfer
 
-    # Calculate the area under the curve for each method
+    # Calculate the area under the curve for each no transfer and transfer methods
     no_transfer_data = data2.loc[data2['Condition1'] == 'No_Transfer_Method']
-    #print(no_transfer_data)
     no_transfer_y = no_transfer_data[value]
     no_transfer_y = list(no_transfer_y.dropna())
-    #print(no_transfer_y)
     no_transfer_area = trapz(no_transfer_y, dx=5)
     print("No Transfer Method Total Rewards: ", no_transfer_area)
     transfer_metrics_dataframe.at[0, 'Total Rewards'] = no_transfer_area
 
     transfer_data = data2.loc[data2['Condition1'] == 'Transfer_Method']
-    #print(transfer_data)
     transfer_y = transfer_data[value]
     transfer_y = list(transfer_y.dropna())
-    #print(transfer_y)
     transfer_area = trapz(transfer_y, dx=5)
     print("Transfer Method Total Rewards: ", transfer_area)
     transfer_metrics_dataframe.at[1, 'Total Rewards'] = transfer_area
 
     # Output tansfer metrics to a csv file within top repository directory
     # Written so that the file will overwrite file of the same name within transfer_metrics_log directory
-    #print(transfer_metrics_dataframe)
     transfer_metrics_dataframe_filepath = Path('./transfer_metrics_log/transfer_metrics.csv')
     transfer_metrics_dataframe_filepath.parent.mkdir(parents=True, exist_ok=True)
     transfer_metrics_dataframe.to_csv(transfer_metrics_dataframe_filepath)
@@ -113,33 +117,18 @@ def plot_transfer_metrics(data, xaxis='time/total_timesteps', value="Performance
 
 
 def plot_data(data, xaxis='time/total_timesteps', value="Performance", condition="Condition1", smooth=1, **kwargs):
+    """
+    Plotting function for the reward lines
+    :return: two plots if smooth > 1; original data plot and smoothed data plot on top of the original plot
+    """
     data2 = data
 
     if isinstance(data2, list):
         data2 = pd.concat(data2, ignore_index=True)
     sns.set(style="whitegrid", font_scale=1.5)
     sns.lineplot(data=data2, x=xaxis, y=value, hue=condition, palette='pastel', legend=False, ci='sd', **kwargs)
-    #sns.tsplot(data=data, time=xaxis, value=value, unit="Unit", condition=condition, ci='sd', **kwargs)
-    """
-    If you upgrade to any version of Seaborn greater than 0.8.1, switch from 
-    tsplot to lineplot replacing L29 with:
 
-        sns.lineplot(data=data, x=xaxis, y=value, hue=condition, ci='sd', **kwargs)
-
-    Changes the colorscheme and the default legend style, though.
-    """
-    #plt.legend(loc='best').set_draggable(True)
-    #plt.legend(loc='upper center', ncol=3, handlelength=1,
-    #           borderaxespad=0., prop={'size': 13})
-
-    """
-    For the version of the legend used in the Spinning Up benchmarking page, 
-    swap L38 with:
-
-    plt.legend(loc='upper center', ncol=6, handlelength=1,
-               mode="expand", borderaxespad=0., prop={'size': 13})
-    """
-
+    # This portion in original file
     xscale = np.max(np.asarray(data2[xaxis])) > 5e3
     if xscale:
         # Just some formatting niceness: x-axis scale in scientific notation if max x is large
@@ -147,6 +136,7 @@ def plot_data(data, xaxis='time/total_timesteps', value="Performance", condition
 
     plt.tight_layout(pad=0.5)
 
+    # If smoothing greater than 1, plot will include smoothed line in darker color on top of regular line plot.
     if smooth > 1:
         """
         smooth data with moving window average.
@@ -165,27 +155,9 @@ def plot_data(data, xaxis='time/total_timesteps', value="Performance", condition
         data = pd.concat(data, ignore_index=True)
     sns.set(style="whitegrid", font_scale=1.5)
     sns.lineplot(data=data, x=xaxis, y=value, hue=condition, palette='dark', ci='sd', **kwargs)
-    #sns.tsplot(data=data, time=xaxis, value=value, unit="Unit", condition=condition, ci='sd', **kwargs)
-    """
-    If you upgrade to any version of Seaborn greater than 0.8.1, switch from 
-    tsplot to lineplot replacing L29 with:
 
-        sns.lineplot(data=data, x=xaxis, y=value, hue=condition, ci='sd', **kwargs)
-
-    Changes the colorscheme and the default legend style, though.
-    """
+    # From original file.
     plt.legend(loc='best').set_draggable(True)
-    #plt.legend(loc='upper center', ncol=3, handlelength=1,
-    #           borderaxespad=0., prop={'size': 13})
-
-    """
-    For the version of the legend used in the Spinning Up benchmarking page, 
-    swap L38 with:
-
-    plt.legend(loc='upper center', ncol=6, handlelength=1,
-               mode="expand", borderaxespad=0., prop={'size': 13})
-    """
-
     xscale = np.max(np.asarray(data[xaxis])) > 5e3
     if xscale:
         # Just some formatting niceness: x-axis scale in scientific notation if max x is large
@@ -195,8 +167,7 @@ def plot_data(data, xaxis='time/total_timesteps', value="Performance", condition
 
 def get_datasets(logdir, condition=None, sample_count=1210000):
     """
-    Recursively look through logdir for output files produced by
-    spinup.logx.Logger.
+    Recursively look through transfer and no transfer directories provided as a terminal argument by the user.
 
     Assumes that any file "progress.csv" is a valid hit.
     """
@@ -224,11 +195,9 @@ def get_datasets(logdir, condition=None, sample_count=1210000):
                 print('Could not read from %s'%os.path.join(root,'progress.csv'))
                 continue
             exp_data_shortened = exp_data.loc[exp_data['time/total_timesteps'] < sample_count]
-            #print(exp_data_shortened.shape)
             performance = 'eval/mean_reward'
             exp_data_shortened.insert(len(exp_data_shortened.columns), 'Unit', unit)
             exp_data_shortened.insert(len(exp_data_shortened.columns), 'Condition1', condition1)
-            #exp_data.insert(len(exp_data.columns), 'Condition2', condition2)
             exp_data_shortened.insert(len(exp_data_shortened.columns), 'Performance', exp_data_shortened[performance])
             datasets.append(exp_data_shortened)
     return datasets
@@ -242,6 +211,7 @@ def get_all_datasets(all_logdirs, legend=None, select=None, exclude=None, sample
 
         2) if not, check to see if the entry is a prefix for a
            real directory, and pull data from that.
+    This method from original file.
     """
     logdirs = []
     for logdir in all_logdirs:
@@ -289,6 +259,10 @@ def get_all_datasets(all_logdirs, legend=None, select=None, exclude=None, sample
 def make_plots(all_logdirs, legend=None, xaxis=None, values=None, count=False,
                font_scale=1.5, smooth=1, select=None, exclude=None, estimator='mean', sample_count=1210000,
                threshold=350):
+    """
+    Main method called to start the process of pulling data from given csv progress files and then plotting
+    the average rewards data and transfer metrics data.
+    """
     data = get_all_datasets(all_logdirs, legend, select, exclude, sample_count)
     values = values if isinstance(values, list) else [values]
     condition = 'Condition1'
@@ -374,7 +348,7 @@ def main():
             curves from logdirs that do not contain these substrings.
 
     """
-    #print("no transfer log: ", args.no_transfer_logdir)
+
     logdir = [args.no_transfer_logdir[0], args.transfer_logdir[0]]
 
     make_plots(logdir, args.legend, args.xaxis, args.value, args.count,
