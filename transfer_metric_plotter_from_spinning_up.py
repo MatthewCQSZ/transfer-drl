@@ -6,6 +6,8 @@ import json
 import os
 import os.path as osp
 import numpy as np
+from numpy import trapz
+from pathlib import Path
 
 DIV_LINE_WIDTH = 50
 
@@ -15,29 +17,97 @@ units = dict()
 
 
 def plot_transfer_metrics(data, xaxis='time/total_timesteps', value="Performance", condition="Condition1", smooth=1,
-                          sample_count=1210000, **kwargs):
+                          sample_count=1210000, threshold=350, **kwargs):
+    transfer_metrics_dict = {'Condition': ['No Transfer Method', 'Transfer Method', 'One Metric Only'],
+                             'Jumpstart Performance': ['NA', 'NA', 0],
+                             'Asymptotic Performance': ['NA', 'NA', 0],
+                             'Time to Threshold': [0, 0, 'NA'],
+                             'Total Rewards': [0, 0, 'NA']}
+    transfer_metrics_dataframe = pd.DataFrame.from_dict(transfer_metrics_dict)
+    print(transfer_metrics_dataframe)
     data2 = data
     if isinstance(data2, list):
         data2 = pd.concat(data2, ignore_index=True)
 
     # Jumpstart Performance Metric Line plot
     line = sns.lineplot(data=data2.loc[data2['time/total_timesteps'] == 500], x=xaxis, y=value,
-                        color='black', palette='bright', legend=False, style='time/total_timesteps', estimator=None, linewidth='2.5')
-    line.annotate(' Jumpstart', xy=(0, 10))
+                        color='red', palette='bright', legend=False, style='time/total_timesteps',
+                        markers=True, dashes=False, estimator=None, linewidth='2.5')
+    line.annotate('Jumpstart', xy=(0, 10), color='red')
+
+    jumpstart_data = data2.loc[data2['time/total_timesteps'] == 500]
+    transfer_jumpstart_perf = list(jumpstart_data.loc[jumpstart_data['Condition1'] == 'Transfer_Method'][value])[0] - \
+                              list(jumpstart_data.loc[jumpstart_data['Condition1'] == 'No_Transfer_Method'][value])[0]
+    print('Jumpstart Performance: ', transfer_jumpstart_perf)
+    transfer_metrics_dataframe.at[2, 'Jumpstart Performance'] = transfer_jumpstart_perf
+    #print(transfer_metrics_dataframe)
 
     # Asymptotic Performance Metric Line plot
     last_timestep = data2.tail(1)['time/total_timesteps']
     last_value = data2.tail(1)[value]
     line2 = sns.lineplot(data=data2.loc[data2['time/total_timesteps'] == last_timestep.iloc[0]], x=xaxis, y=value,
-                  color='black', palette='bright', legend=False, style='time/total_timesteps', estimator=None, linewidth='2.5')
-    line2.annotate(' Asymptotic Performance', xy=(last_timestep.iloc[0], last_value.iloc[0]))
+                         color='red', palette='bright', legend=False, style='time/total_timesteps',
+                         markers=True, dashes=False, estimator=None, linewidth='2.5')
+    line2.annotate(' Asymptotic Performance', xy=(last_timestep.iloc[0], last_value.iloc[0]), color='red')
+    asymptotic_data = data2.loc[data2['time/total_timesteps'] == last_timestep.iloc[0]]
+    transfer_asymptotic_perf = list(asymptotic_data.loc[asymptotic_data['Condition1'] == 'Transfer_Method'][value])[0] - \
+                              list(asymptotic_data.loc[asymptotic_data['Condition1'] == 'No_Transfer_Method'][value])[0]
+    print('Asymptotic Performance: ', transfer_asymptotic_perf)
+    transfer_metrics_dataframe.at[2, 'Asymptotic Performance'] = transfer_asymptotic_perf
 
     # Threshold Performance horizontal line plot
     kwargs.pop("estimator")
     kwargs.update({"label": "Threshold Performance"})
     kwargs.update({"color": "black"})
     kwargs.update({"ls": "--"})
-    line2.axhline(350, **kwargs) # 150 for Lift and place; 350 for Lift
+    line2.axhline(threshold, **kwargs)
+
+    # Time to threshold calculation
+    time_to_thresh_no_transfer_data = data2.loc[data2['Condition1'] == 'No_Transfer_Method']
+    time_to_thresh_no_transfer_data = time_to_thresh_no_transfer_data.loc[time_to_thresh_no_transfer_data[value] > threshold]
+    if time_to_thresh_no_transfer_data.empty:
+        print("No Transfer Method Never Reached Threshold")
+        transfer_metrics_dataframe.at[0, 'Time to Threshold'] = "No Transfer Method Never Reached Threshold"
+    else:
+        time_to_thresh_no_transfer = list(time_to_thresh_no_transfer_data['time/total_timesteps'])[0]
+        print("Time to Threshold for No Transfer Method (total timesteps): ", time_to_thresh_no_transfer)
+        transfer_metrics_dataframe.at[0, 'Time to Threshold'] = time_to_thresh_no_transfer
+
+    time_to_thresh_transfer_data = data2.loc[data2['Condition1'] == 'Transfer_Method']
+    time_to_thresh_transfer_data = time_to_thresh_transfer_data.loc[time_to_thresh_transfer_data[value] > threshold]
+    if time_to_thresh_transfer_data.empty:
+        print("Transfer Method Never Reached Threshold")
+        transfer_metrics_dataframe.at[1, 'Time to Threshold'] = "Transfer Method Never Reached Threshold"
+    else:
+        time_to_thresh_transfer = list(time_to_thresh_transfer_data['time/total_timesteps'])[0]
+        print("Time to Threshold for Transfer Method (total timesteps): ", time_to_thresh_transfer)
+        transfer_metrics_dataframe.at[1, 'Time to Threshold'] = time_to_thresh_transfer
+
+    # Calculate the area under the curve for each method
+    no_transfer_data = data2.loc[data2['Condition1'] == 'No_Transfer_Method']
+    #print(no_transfer_data)
+    no_transfer_y = no_transfer_data[value]
+    no_transfer_y = list(no_transfer_y.dropna())
+    #print(no_transfer_y)
+    no_transfer_area = trapz(no_transfer_y, dx=5)
+    print("No Transfer Method Total Rewards: ", no_transfer_area)
+    transfer_metrics_dataframe.at[0, 'Total Rewards'] = no_transfer_area
+
+    transfer_data = data2.loc[data2['Condition1'] == 'Transfer_Method']
+    #print(transfer_data)
+    transfer_y = transfer_data[value]
+    transfer_y = list(transfer_y.dropna())
+    #print(transfer_y)
+    transfer_area = trapz(transfer_y, dx=5)
+    print("Transfer Method Total Rewards: ", transfer_area)
+    transfer_metrics_dataframe.at[1, 'Total Rewards'] = transfer_area
+
+    # Output tansfer metrics to a csv file within top repository directory
+    # Written so that the file will overwrite file of the same name within transfer_metrics_log directory
+    #print(transfer_metrics_dataframe)
+    transfer_metrics_dataframe_filepath = Path('./transfer_metrics_log/transfer_metrics.csv')
+    transfer_metrics_dataframe_filepath.parent.mkdir(parents=True, exist_ok=True)
+    transfer_metrics_dataframe.to_csv(transfer_metrics_dataframe_filepath)
 
 
 
@@ -216,7 +286,8 @@ def get_all_datasets(all_logdirs, legend=None, select=None, exclude=None, sample
 
 
 def make_plots(all_logdirs, legend=None, xaxis=None, values=None, count=False,
-               font_scale=1.5, smooth=1, select=None, exclude=None, estimator='mean', sample_count=1210000):
+               font_scale=1.5, smooth=1, select=None, exclude=None, estimator='mean', sample_count=1210000,
+               threshold=350):
     data = get_all_datasets(all_logdirs, legend, select, exclude, sample_count)
     values = values if isinstance(values, list) else [values]
     condition = 'Condition1'
@@ -224,7 +295,7 @@ def make_plots(all_logdirs, legend=None, xaxis=None, values=None, count=False,
     for value in values:
         plt.figure()
         plot_transfer_metrics(data, xaxis=xaxis, value=value, condition=condition, smooth=smooth, estimator=estimator,
-                              sample_count=sample_count)
+                              sample_count=sample_count, threshold=threshold)
         plot_data(data, xaxis=xaxis, value=value, condition=condition, smooth=smooth, estimator=estimator)
 
     plt.show()
@@ -238,6 +309,7 @@ def main():
     parser.add_argument('--legend', '-l', nargs='*')
     parser.add_argument('--xaxis', '-x', default='time/total_timesteps')
     parser.add_argument('--sample_count', type=int, default=1210000)
+    parser.add_argument('--threshold', type=int, default=350)
     parser.add_argument('--value', '-y', default='Performance', nargs='*')
     parser.add_argument('--count', action='store_true')
     parser.add_argument('--smooth', '-s', type=int, default=1)
@@ -271,6 +343,9 @@ def main():
              
         sample_count (int): number of total_timesteps to pull from the given
              data.
+             
+        threshold (int): threshold performance number for a given task.
+             threshold 150 for Lift and place; 350 for Lift task
 
         value (strings): Pick what columns from data to graph on the y-axis. 
             Submitting multiple values will produce multiple graphs. Defaults
@@ -303,7 +378,7 @@ def main():
 
     make_plots(logdir, args.legend, args.xaxis, args.value, args.count,
                smooth=args.smooth, select=args.select, exclude=args.exclude,
-               estimator=args.est, sample_count=args.sample_count)
+               estimator=args.est, sample_count=args.sample_count, threshold=args.threshold)
 
 
 if __name__ == "__main__":
