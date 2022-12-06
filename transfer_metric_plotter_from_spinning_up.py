@@ -1,4 +1,5 @@
-# Code taken from https://github.com/openai/spinningup/blob/master/spinup/utils/plot.py modified by Charles Meehan
+# Base code taken from https://github.com/openai/spinningup/blob/master/spinup/utils/plot.py,
+# all transfer learning metrics related work added by Charles Meehan
 import seaborn as sns
 import pandas as pd
 import matplotlib.pyplot as plt
