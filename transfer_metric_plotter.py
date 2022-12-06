@@ -25,7 +25,7 @@ def plot_transfer_metrics(data, xaxis='time/total_timesteps', value="Performance
                              'Time to Threshold': [0, 0, 'NA'],
                              'Total Rewards': [0, 0, 'NA']}
     transfer_metrics_dataframe = pd.DataFrame.from_dict(transfer_metrics_dict)
-    print(transfer_metrics_dataframe)
+    #print(transfer_metrics_dataframe)
     data2 = data
     if isinstance(data2, list):
         data2 = pd.concat(data2, ignore_index=True)
