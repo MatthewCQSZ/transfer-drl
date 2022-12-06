@@ -2,6 +2,8 @@
 Base code taken from https://github.com/openai/spinningup/blob/master/spinup/utils/plot.py,
 Modified base code to work with pulling transfer learning results and
 all transfer learning metrics related work added by Charles Meehan
+The purpose of this file is to plot transfer learning metrics on top of reward plots taken from RL
+training. The transfer metrics are also returned as a csv file.
 """
 
 import seaborn as sns

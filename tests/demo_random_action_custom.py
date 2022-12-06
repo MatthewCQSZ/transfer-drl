@@ -1,3 +1,6 @@
+"""
+Demo created to test random actions within our created environments.
+"""
 from robosuite.controllers import load_controller_config
 from robosuite.utils.input_utils import *
 
