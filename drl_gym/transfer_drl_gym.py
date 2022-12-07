@@ -1,14 +1,12 @@
 import numpy as np
-import time
 import argparse
 
 from stable_baselines3.common.logger import configure
 from stable_baselines3.common.callbacks import CheckpointCallback, EvalCallback
-from stable_baselines3.common.noise import NormalActionNoise
 from utils.common import make_env, make_algorithm
 from utils.video_generation import generate_video
 
-class DRLGym:
+class TransferDRLGym:
     '''
     Base Class for DRLGym
     A integrated Deep Reinforcement Learning and Transfer Learning library based on
@@ -16,7 +14,7 @@ class DRLGym:
     Robosuite
     
     :params logdir: the directory for logging.
-    :params reuse_logdir: the directory for teacher policy in Policy Reuse
+    :params reuse_logdir: the directory for teacher policy in Policy Reuse.
     :params robot: the name for robosuite robots, like "Panda", "Sawyer", "LBR IIWA 7",
         "Jaco", "Kinova Gen3", "UR5e".
     :params env_name: the name for the environment, currently supporting "Lift", "BaseLift",
@@ -25,7 +23,7 @@ class DRLGym:
         "TD3", "SOC", "SACPolicyReuse", "TD3PolicyReuse".
     :params buffersize: size for the replay buffer.
     :params num_steps: total number of steps for training.
-    :params mu: parameter mu in Policy Reuse
+    :params mu: parameter mu in Policy Reuse.
     :params max_reuse_steps: maximum number of steps for per episode in Policy Reuse.
     :params seed: random seed.
     '''
@@ -130,7 +128,7 @@ class DRLGym:
 
 
 def main(args):
-    transfer_learning = DRLGym(**vars(args))
+    transfer_learning = TransferDRLGym(**vars(args))
     if args.train:
         transfer_learning.make()
         transfer_learning.train()
@@ -144,23 +142,41 @@ def main(args):
     
     
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--logdir', type=str, default='default_log/')
-    parser.add_argument('--reuse_logdir', type=str, default='default_log/')
-    parser.add_argument("--robot", type=str, default="Panda")
-    parser.add_argument("--env_name", type=str, default="BaseLift")
-    parser.add_argument("--algorithm", type=str, default="SAC")
-    parser.add_argument("--buffer_size", type=int, default=1e6)
-    parser.add_argument("--num_steps", type=int, default=1e6)
-    parser.add_argument("--mu", type=float, default=0.95)
-    parser.add_argument("--max_reuse_steps", type=int, default=500)
-    parser.add_argument("--seed", type=int, default=69)
-    parser.add_argument('--train', dest='train', action='store_true', default=False)
-    parser.add_argument('--video', dest='video', action='store_true', default=False)
-    parser.add_argument("--camera", type=str, default="frontview")
-    parser.add_argument("--video_path", type=str, default="video")
-    parser.add_argument("--video_timesteps", type=int, default=500)
-    parser.add_argument("--video_num_iter", type=int, default=10)
-    parser.add_argument("--reward_threshhold", type=float, default=0.00)
+    parser = argparse.ArgumentParser(prog = 'TransferFRLGym',
+                                     description = 'A library for Deep Reinforcement Learning and Transfer Learning.')
+    parser.add_argument('--logdir', type=str, default='default_log/',
+                        help="the directory for logging.")
+    parser.add_argument('--reuse_logdir', type=str, default='default_log/',
+                        help="the directory for teacher policy in Policy Reuse.")
+    parser.add_argument("--robot", type=str, default="Panda",
+                        help="the name for robosuite robots, like \"Panda\", \"Sawyer\".")
+    parser.add_argument("--env_name", type=str, default="BaseLift",
+                        help="the name for the environment, like \"BaseLift\", \"LiftAndPlace\".")
+    parser.add_argument("--algorithm", type=str, default="SAC",
+                        help="the name of the algorithm for training, like \"SAC\", \"SACPolicyReuse\".")
+    parser.add_argument("--buffer_size", type=int, default=1e6,
+                        help="size for the replay buffer.")
+    parser.add_argument("--num_steps", type=int, default=1e6,
+                        help=" total number of steps for training.")
+    parser.add_argument("--mu", type=float, default=0.95,
+                        help="parameter mu in Policy Reuse.")
+    parser.add_argument("--max_reuse_steps", type=int, default=500,
+                        help="maximum number of steps for per episode in Policy Reuse.")
+    parser.add_argument("--seed", type=int, default=69,
+                        help="random seed.")
+    parser.add_argument('--train', dest='train', action='store_true', default=False,
+                        help="set for training.")
+    parser.add_argument('--video', dest='video', action='store_true', default=False,
+                        help="set for video generation.")
+    parser.add_argument("--camera", type=str, default="frontview",
+                        help="name of the camera, e.g. \"frontview\", \"agentview\".")
+    parser.add_argument("--video_path", type=str, default="video",
+                        help="path to the video.")
+    parser.add_argument("--video_timesteps", type=int, default=500,
+                        help="number of timesteps per iteration.")
+    parser.add_argument("--video_num_iter", type=int, default=10,
+                        help="number of iterations to run for video generation.")
+    parser.add_argument("--reward_threshhold", type=float, default=0.00,
+                        help="threshhold for video saving.")
     args = parser.parse_args()
     main(args)
