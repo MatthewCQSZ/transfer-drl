@@ -70,6 +70,24 @@ def generate_video(
     reward_threshhold: float = 0.0,
     ):
     
+    '''
+    Generate video of manipulation task from model trained.
+    
+    :params model_path: directory to where the model is saved.
+    :params video_path: path to the mp4 file which is the video generated.
+    :params algorithm: name of the algorithm used,
+        "PPO", "SAC", "TD3", "SOC", "SACPolicyReuse", "TD3PolicyReuse".
+    :params env_name: name of the environment,
+        "Lift", "BaseLift", "LiftAndPlace", "LiftAndPlaceBarrier".
+    :params robot: name of the robot,
+        "Panda", "Sawyer", "LBR IIWA 7", "Jaco", "Kinova Gen3", "UR5e".
+    :params camera: name of the camera, e.g. "frontview", "agentview".
+    :params num_iter: number of iterations to run for video generation.
+    :params timesteps: number of timesteps per iteration.
+    :paramsr eward_threshhold: cutoff for video saving. The video will not save iterations in which
+        rewards at all timestamps are below the threshold.
+    '''
+    
     env = robosuite.make(
         env_name,
         robot,
