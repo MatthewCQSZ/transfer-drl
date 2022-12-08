@@ -9,9 +9,9 @@ Here are the common instructions for setting up robosuite and robosuite-benchmar
 3. Unzip the downloaded  mujoco210-linux-x86_64.tar.gz into ~/.mujoco/mjpro210, and place your license key (the mjkey.txt file downloaded from step 2) at ~/.mujoco/mjkey.txt.
 4. Run pip3 install -U 'mujoco-py<2.2,>=2.1'
 5. $ python3
-import mujoco_py
--While runnig above step if there is error "mujoco py install error - fatal error: GL/osmesa.h: No such file or directory"
--Try $ sudo apt-get install libosmesa6-dev
+- import mujoco_py
+- While runnig above step if there is error "mujoco py install error - fatal error: GL/osmesa.h: No such file or directory"
+- Try $ sudo apt-get install libosmesa6-dev
 - Or this "No such file or directory: 'patchelf' on mujoco-py installation"
 - $ sudo apt-get install patchelf
 7. If everything is fine, run the following in the python3 env:
