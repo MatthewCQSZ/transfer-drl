@@ -4,6 +4,8 @@ Here are the common instructions for setting up robosuite and robosuite-benchmar
 
 ## Installing Mujoco
 
+1.
+
 1. First install MuJoCo 2.10 from https://github.com/deepmind/mujoco/releases/tag/2.1.0. Feel free to test out other versions of MuJoCo, but this is the version that has been vetted.
 2. You can follow MuJoCo's instructions to test out simulating one of the preloaded MuJoCo models such as humanoid-100.xml. Follow the Getting Started section of the instructions to find
 the command, https://mujoco.readthedocs.io/en/latest/programming.html#getting-started. 
