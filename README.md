@@ -20,7 +20,7 @@ Here are the common instructions for setting up robosuite and robosuite-benchmar
 - xml_path = os.path.join(mj_path, 'model', 'humanoid.xml')
 - model = mujoco_py.load_model_from_path(xml_path)
 - sim = mujoco_py.MjSim(model)
-- 9. After that print following:
+9. After that print following:
 - print(sim.data.qpos)
 [0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]
 
