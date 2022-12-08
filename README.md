@@ -1,6 +1,6 @@
 # transfer-drl
 
-Here are the common instructions for setting up robosuite and robosuite-benchmarking repositories. I have tested this setup on Ubuntu 18.04, WSL1/Ubuntu20.04, and WSL2/Ubuntu20.04.
+Here are the common instructions for setting up robosuite and robosuite-benchmarking repositories. I have tested this setup on Ubuntu 18.04, WSL1/Ubuntu20.04, and WSL2/Ubuntu20.04 and Ubuntu22.04.
 
 ## Installing Mujoco
 
