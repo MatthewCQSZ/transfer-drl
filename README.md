@@ -15,14 +15,14 @@ Here are the common instructions for setting up robosuite and robosuite-benchmar
 - Or this "No such file or directory: 'patchelf' on mujoco-py installation"
 - $ sudo apt-get install patchelf
 7. If everything is fine, run the following in the python3 env:
-import os
-mj_path = mujoco_py.utils.discover_mujoco()
-xml_path = os.path.join(mj_path, 'model', 'humanoid.xml')
-model = mujoco_py.load_model_from_path(xml_path)
-sim = mujoco_py.MjSim(model)
-9. After that print following:
-print(sim.data.qpos)
-## [0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]
+- import os
+- mj_path = mujoco_py.utils.discover_mujoco()
+- xml_path = os.path.join(mj_path, 'model', 'humanoid.xml')
+- model = mujoco_py.load_model_from_path(xml_path)
+- sim = mujoco_py.MjSim(model)
+- 9. After that print following:
+- print(sim.data.qpos)
+[0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]
 
 sim.step()
 print(sim.data.qpos)
