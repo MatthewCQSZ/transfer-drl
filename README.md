@@ -6,6 +6,8 @@ The library uses [Robosuite](https://robosuite.ai/) for environment implementati
 
 Please follow [installation instruction](install_instruction/) to set up Mujoco and install required package.
 
+### Base Library
+
 To run experiments, simply
  
 ```
@@ -27,6 +29,12 @@ transfer_learning.train()
 
 # Save video
 transfer_learning.generate_video()
+```
+
+Plot for loss, return, entropy... can auto-generated during training. They can be accessed by using tensorboard.
+
+```
+tensorboard --logdir <logging_directory>
 ```
 
 ### Transfer Learning Metric Plotter
@@ -55,6 +63,8 @@ directory.
 ```
 python transfer_metric_plotter.py --no_transfer_logdir ./report_log/default_log_Nov17_lift_noshaping/Lift_Panda_SEED69/SAC/ --transfer_logdir ./report_log/default_log_Nov25_Lift_vanilla_sac/BaseLift_Panda_SEED69/SAC/ --smooth 4 --sample_count 1140000 --threshold 350
 ```
+
+### Extra
 
 For help, run
 ```

@@ -11,19 +11,14 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from buffers import OptionReplayBuffer
+from .buffers import OptionReplayBuffer
 from torch.utils.tensorboard import SummaryWriter
 
 from robosuite.controllers import load_controller_config
 from robosuite.utils.input_utils import *
-from robosuite.environments.manipulation.lift_with_terminals import LiftWithTerminals
-from robosuite.environments.manipulation.lift_and_place_with_terminals import LiftAndPlaceWithTerminals
-from robosuite.environments.base import register_env
 from robosuite.wrappers.gym_wrapper import GymWrapper 
 
 
-register_env(LiftWithTerminals)
-register_env(LiftAndPlaceWithTerminals)
 
 DEFAULT_CONTROLLER = load_controller_config(default_controller="OSC_POSE")
 DEFAULT_CONFIG = {

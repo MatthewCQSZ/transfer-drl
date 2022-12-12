@@ -57,6 +57,7 @@ class TransferDRLGym:
         no_reward_shaping: bool = False,
         num_options: int = 2,
         option_eps_steps: int = 200000,
+        **kwargs,
         ):
         
         self.logdir = logdir
@@ -80,7 +81,7 @@ class TransferDRLGym:
         '''
         self.env = make_env(self.env_name, self.robot, self.seed, self.no_reward_shaping)
         self.model_path = f"{self.logdir}/{self.env_name}_{self.robot}_SEED{self.seed}/{self.algorithm}/"
-        self.reuse_path = f"{self.reuse_logdir}/{self.env_name}_{self.robot}_SEED{self.seed}/{self.algorithm}/"
+        self.reuse_path = f"{self.reuse_logdir}/{self.env_name.replace('PolicyReuse', '')}_{self.robot}_SEED{self.seed}/{self.algorithm}/"
 
     
     def train(self):
@@ -89,7 +90,7 @@ class TransferDRLGym:
         algorithms ("PPO", "SAC", "TD3", "SOC", "SACPolicyReuse", "TD3PolicyReuse").
         Model checkpoints and weights are saved in "<logdir>/<env_name>_<robot>_SEED<seed>/<algorithm>/"
         '''
-        if "SOC" in self.env:
+        if "SOC" in self.env_name:
             # Training with SOC is set up differently, refer to SOC documentation for details
             train_SOC(
                 output_path = self.model_path,
@@ -159,8 +160,9 @@ class TransferDRLGym:
         )
 
 
-def main(args):
+def main(args): 
     transfer_learning = TransferDRLGym(**vars(args))
+    
     if args.train:
         transfer_learning.make()
         transfer_learning.train()
