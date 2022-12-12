@@ -6,39 +6,6 @@ Here are the common instructions for setting up robosuite and robosuite-benchmar
 2. Download the license key from the following:https://www.roboti.us/license.html. 
 3. Unzip the downloaded  mujoco210-linux-x86_64.tar.gz into ~/.mujoco/mjpro210, and place your license key (the mjkey.txt file downloaded from step 2) at ~/.mujoco/mjkey.txt.
 4. Run pip3 install -U 'mujoco-py<2.2,>=2.1'
-5. $ python3
-- import mujoco_py
-- While runnig above step if there is error "mujoco py install error - fatal error: GL/osmesa.h: No such file or directory"
-- Try $ sudo apt-get install libosmesa6-dev
-- Or this "No such file or directory: 'patchelf' on mujoco-py installation"
-- $ sudo apt-get install patchelf
-7. If everything is fine, run the following in the python3 env:
-- import os
-- mj_path = mujoco_py.utils.discover_mujoco()
-- xml_path = os.path.join(mj_path, 'model', 'humanoid.xml')
-- model = mujoco_py.load_model_from_path(xml_path)
-- sim = mujoco_py.MjSim(model)
-9. After that print following:
-- print(sim.data.qpos)
-```
-[0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]
- ```
-- sim.step()
-- print(sim.data.qpos)
-```
-[-2.09531783e-19  2.72130735e-05  6.14480786e-22 -3.45474715e-06
-  7.42993721e-06 -1.40711141e-04 -3.04253586e-04 -2.07559344e-04
-  8.50646247e-05 -3.45474715e-06  7.42993721e-06 -1.40711141e-04
- -3.04253586e-04 -2.07559344e-04 -8.50646247e-05  1.11317030e-04
- -7.03465386e-05 -2.22862221e-05 -1.11317030e-04  7.03465386e-05
- -2.22862221e-05]
- ```
-
-**#Mujoco is installed successfully**
-
-11. You can follow MuJoCo's instructions to test out simulating one of the preloaded MuJoCo models such as humanoid-100.xml. Follow the Getting Started section of the instructions to find
-the command, https://mujoco.readthedocs.io/en/latest/programming.html#getting-started. 
-3. Follow the remaining instructions to install and setup MuJoCo-py, https://github.com/openai/mujoco-py. 
 
 ## Install linux dependencies
 ```shell
@@ -46,7 +13,13 @@ the command, https://mujoco.readthedocs.io/en/latest/programming.html#getting-st
          libosmesa6-dev software-properties-common net-tools unzip vim \
          virtualenv wget xpra xserver-xorg-dev libglfw3-dev patchelf
  ```
- 
+
+## Method to test out your MuJoCo software and download mujoco-py
+1. You can follow MuJoCo's instructions to test out simulating one of the preloaded MuJoCo models such as humanoid-100.xml. Follow the Getting Started section of the instructions to find
+the command, https://mujoco.readthedocs.io/en/latest/programming.html#getting-started. 
+2. Follow the remaining instructions to install and setup MuJoCo-py, https://github.com/openai/mujoco-py. 
+
+
  ## Setting up and installing robosuite
  
  We have found that setting robosuite up using virtualenv instead of a conda environment seems to work better and not have bugs running training. Feel free to follow robosuite 
