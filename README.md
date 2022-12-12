@@ -35,7 +35,7 @@ To use the transfer learning metric plotter (transfer_metric_plotter.py), you wi
 arguments:
 1. --no_transfer_logdir with the directory path that contains your progress.csv file 
 for your RL agent trained without transfer learning (from scratch). 
-2. --transfer_logdir with the directory path of your progress.csv file for your agent 
+2. --transfer_logdir with the directory path of your progress.csv file for your RL agent 
 trained with transfer learning.
 3. --smooth with an integer value that is larger than 1 if you want to see a smoothed version of your rewards plot over your raw 
 rewards plot.
@@ -48,7 +48,9 @@ NOTE: Make sure there are these two labeled columns in your progress.csv file.
 2. time/total_timesteps
 
 Below is an example terminal command that ran the transfer metric plotter with data from our block lifting task with 
-and without using reward shaping.
+and without using reward shaping. For every run of the transfer metric plotter, the transfer metrics will be printed to 
+the terminal and saved in a csv file named transfer_metrics.csv in the [/transfer_metrics_log](transfer_metrics_log) 
+directory.
 
 ```
 python transfer_metric_plotter.py --no_transfer_logdir ./report_log/default_log_Nov17_lift_noshaping/Lift_Panda_SEED69/SAC/ --transfer_logdir ./report_log/default_log_Nov25_Lift_vanilla_sac/BaseLift_Panda_SEED69/SAC/ --smooth 4 --sample_count 1140000 --threshold 350
@@ -60,4 +62,4 @@ python transfer_drl_gym.py -h
 python transfer_metric_plotter.py -h
 ```
 
-More unit tests at [here](tests/).
+More unit tests can be found in the [/tests](tests) directory.
