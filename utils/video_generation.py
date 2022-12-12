@@ -85,7 +85,7 @@ def generate_video(
     :params num_iter: number of iterations to run for video generation.
     :params timesteps: number of timesteps per iteration.
     :paramsr eward_threshhold: cutoff for video saving. The video will not save iterations in which
-        rewards at all timestamps are below the threshold.
+        rewards at all timestamps are less than or equal to the threshold.
     '''
     
     env = robosuite.make(

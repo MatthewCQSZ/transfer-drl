@@ -12,14 +12,15 @@ from stable_baselines3.common.utils import get_parameters_by_name, polyak_update
 from stable_baselines3.sac.policies import CnnPolicy, MlpPolicy, MultiInputPolicy, SACPolicy
 from stable_baselines3.common.noise import ActionNoise
 
-from off_policy_algorithm_policy_reuse import OffPolicyAlgorithmPolicyReuse
+from .off_policy_algorithm_policy_reuse import OffPolicyAlgorithmPolicyReuse
 
 SACPolicyReuseSelf = TypeVar("SACPolicyReuseSelf", bound="SACPolicyReuse")
         
     
 class SACPolicyReuse(OffPolicyAlgorithmPolicyReuse):
     """
-    Soft Actor-Critic (SAC)
+    Soft Actor-Critic (SAC) with Probabilistic Policy Reuse
+    
     Off-Policy Maximum Entropy Deep Reinforcement Learning with a Stochastic Actor,
     This implementation borrows code from original implementation (https://github.com/haarnoja/sac)
     from OpenAI Spinning Up (https://github.com/openai/spinningup), from the softlearning repo
@@ -30,6 +31,9 @@ class SACPolicyReuse(OffPolicyAlgorithmPolicyReuse):
 
     Note: we use double q target and not value target as discussed
     in https://github.com/hill-a/stable-baselines/issues/270
+    
+    Original paper on Probabilistic Policy Reuse
+    https://www.cs.cmu.edu/~mmv/papers/06aamas-policy-reuse.pdf 
 
     :param policy: The policy model to use (MlpPolicy, CnnPolicy, ...)
     :param env: The environment to learn from (if registered in Gym, can be str)
@@ -73,6 +77,10 @@ class SACPolicyReuse(OffPolicyAlgorithmPolicyReuse):
     :param device: Device (cpu, cuda, ...) on which the code should be run.
         Setting it to auto, the code will be run on the GPU if possible.
     :param _init_setup_model: Whether or not to build the network at the creation of the instance
+    :param old_policy: Teacher policy to be transfered in Policy Reuse.
+    :param reuse_phi: Initial probability to use old policy, diminishing over steps.
+    :param reuse_mu: Mu value for Policy Reuse, determines the decay of the probability to use old policy.
+    :param max_reuse_steps: Maximum number of steps per iteration to run Policy Reuse.
     """
 
     policy_aliases: Dict[str, Type[BasePolicy]] = {
@@ -110,8 +118,6 @@ class SACPolicyReuse(OffPolicyAlgorithmPolicyReuse):
         device: Union[th.device, str] = "auto",
         _init_setup_model: bool = True,
         old_policy: SACPolicy = None,
-        reuse_gamma: float = 0.95,
-        reuse_alpha: float = 0.05,
         reuse_phi: float = 1.0,
         reuse_mu: float = 0.95,
         max_reuse_steps: int = 500,
@@ -143,8 +149,6 @@ class SACPolicyReuse(OffPolicyAlgorithmPolicyReuse):
             supported_action_spaces=(gym.spaces.Box),
             support_multi_env=True,
             old_policy=old_policy,
-            reuse_gamma=reuse_gamma,
-            reuse_alpha=reuse_alpha,
             reuse_phi=reuse_phi,
             reuse_mu=reuse_mu,
             max_reuse_steps=max_reuse_steps,

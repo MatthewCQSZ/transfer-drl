@@ -5,13 +5,14 @@ from stable_baselines3.common.logger import configure
 from stable_baselines3.common.callbacks import CheckpointCallback, EvalCallback
 from utils.common import make_env, make_algorithm
 from utils.video_generation import generate_video
+from algorithm.soc.soc import train_SOC
 
 class TransferDRLGym:
     '''
     Base Class for DRLGym
     A integrated Deep Reinforcement Learning and Transfer Learning library based on
-    Stable Baselines 3
-    Robosuite
+    Stable Baselines 3  https://stable-baselines3.readthedocs.io/en/master/
+    Robosuite           https://robosuite.ai/
     
     :params logdir: the directory for logging.
     :params reuse_logdir: the directory for teacher policy in Policy Reuse.
@@ -20,7 +21,7 @@ class TransferDRLGym:
     :params env_name: the name for the environment, currently supporting "Lift", "BaseLift",
         "LiftAndPlace", "LiftAndPlaceBarrier".
     :params algorithm: the name of the algorithm for training, currently supporting "PPO", "SAC", 
-        "TD3", "SOC", "SACPolicyReuse", "TD3PolicyReuse".
+        "TD3", "SOC", "SACPolicyReuse", "TD3PolicyReuse"; other SB3 algorithms are supported but not thoroughly tested.
     :params buffersize: size for the replay buffer.
     :params num_steps: total number of steps for training.
     :params mu: parameter mu in Policy Reuse.
@@ -60,13 +61,6 @@ class TransferDRLGym:
         self.env = make_env(self.env_name, self.robot, self.seed)
         self.model_path = f"{self.logdir}/{self.env_name}_{self.robot}_SEED{self.seed}/{self.algorithm}/"
         self.reuse_path = f"{self.reuse_logdir}/{self.env_name}_{self.robot}_SEED{self.seed}/{self.algorithm}/"
-        
-        self.model = make_algorithm(self.env, 
-                                    self.algorithm, 
-                                    self.buffer_size, 
-                                    self.mu, 
-                                    self.max_reuse_steps, 
-                                    self.reuse_path)
 
     
     def train(self):
@@ -75,23 +69,31 @@ class TransferDRLGym:
         algorithms ("PPO", "SAC", "TD3", "SOC", "SACPolicyReuse", "TD3PolicyReuse").
         Model checkpoints and weights are saved in "<logdir>/<env_name>_<robot>_SEED<seed>/<algorithm>/"
         '''
-        assert hasattr(self, "model")
+        if "SOC" in self.env:
+            train_SOC(self.model_path)
+        else:
+            self.model = make_algorithm(self.env, 
+                                        self.algorithm, 
+                                        self.buffer_size, 
+                                        self.mu, 
+                                        self.max_reuse_steps, 
+                                        self.reuse_path)
+            
+            logger = configure(self.model_path, ["stdout", "csv", "tensorboard"])
+            eval_callback = EvalCallback(self.model_path, best_model_save_path=self.model_path,
+                                log_path=self.model_path, eval_freq=500,
+                                deterministic=True, render=False)
+            checkpoint_callback = CheckpointCallback(save_freq=100000, 
+                                                save_path=self.model_path,
+                                                name_prefix="rl_model",
+                                                save_replay_buffer=False,
+                                                save_vecnormalize=False)
+            
+            self.model.set_random_seed(seed=self.seed)
+            self.model.set_logger(logger)
         
-        logger = configure(self.model_path, ["stdout", "csv", "tensorboard"])
-        eval_callback = EvalCallback(self.model_path, best_model_save_path=self.model_path,
-                             log_path=self.model_path, eval_freq=500,
-                             deterministic=True, render=False)
-        checkpoint_callback = CheckpointCallback(save_freq=100000, 
-                                             save_path=self.model_path,
-                                             name_prefix="rl_model",
-                                             save_replay_buffer=False,
-                                             save_vecnormalize=False)
-        
-        self.model.set_random_seed(seed=self.seed)
-        self.model.set_logger(logger)
-    
-        self.model.learn(total_timesteps=self.num_steps, callback=[checkpoint_callback, eval_callback])
-        self.model.save(f"{self.model_path}parameters")
+            self.model.learn(total_timesteps=self.num_steps, callback=[checkpoint_callback, eval_callback])
+            self.model.save(f"{self.model_path}parameters")
         
     def generate_video(
         self, 
@@ -110,7 +112,7 @@ class TransferDRLGym:
         :params num_iter: number of iterations to run for video generation.
         :params timesteps: number of timesteps per iteration.
         :paramsr eward_threshhold: cutoff for video saving. The video will not save iterations in which
-            rewards at all timestamps are below the threshold.
+            rewards at all timestamps are less than or equal to the threshold.
     '''
         
         video_path += ".mp4"

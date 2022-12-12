@@ -91,7 +91,7 @@ def make_env(env_id, seed, idx, capture_video, run_name):
         env = gym.wrappers.RecordEpisodeStatistics(env)
         if capture_video:
             if idx == 0:
-                env = gym.wrappers.RecordVideo(env, f"videos/{run_name}")
+                env = gym.wrappers.RecordVideo(env, {run_name})
         env.seed(seed)
         env.action_space.seed(seed)
         env.observation_space.seed(seed)
@@ -247,9 +247,9 @@ class Actor(nn.Module):
         return action, log_prob, mean
     
 
-if __name__ == "__main__":
+def train_SOC(output_path):
     args = parse_args()
-    run_name = f"{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}"
+    run_name = output_path
     if args.track:
         import wandb
 
@@ -262,7 +262,7 @@ if __name__ == "__main__":
             monitor_gym=True,
             save_code=True,
         )
-    writer = SummaryWriter(f"runs/{run_name}")
+    writer = SummaryWriter(run_name)
     writer.add_text(
         "hyperparameters",
         "|param|value|\n|-|-|\n%s" % ("\n".join([f"|{key}|{value}|" for key, value in vars(args).items()])),

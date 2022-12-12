@@ -26,7 +26,7 @@ OffPolicyAlgorithmPolicyReuseSelf = TypeVar("OffPolicyAlgorithmPolicyReuseSelf",
 
 class OffPolicyAlgorithmPolicyReuse(BaseAlgorithm):
     """
-    The base for Off-Policy algorithms (ex: SAC/TD3)
+    The base for Off-Policy algorithms with Probabilistic Policy Reuse (ex: SACPolicyReuse/TD3PolicyReuse)
 
     :param policy: Policy object
     :param env: The environment to learn from
@@ -75,6 +75,10 @@ class OffPolicyAlgorithmPolicyReuse(BaseAlgorithm):
         during the warm up phase (before learning starts)
     :param sde_support: Whether the model support gSDE or not
     :param supported_action_spaces: The action spaces supported by the algorithm.
+    :param old_policy: Teacher policy to be transfered in Policy Reuse.
+    :param reuse_phi: Initial probability to use old policy, diminishing over steps.
+    :param reuse_mu: Mu value for Policy Reuse, determines the decay of the probability to use old policy.
+    :param max_reuse_steps: Maximum number of steps per iteration to run Policy Reuse.
     """
 
     def __init__(
@@ -107,8 +111,6 @@ class OffPolicyAlgorithmPolicyReuse(BaseAlgorithm):
         sde_support: bool = True,
         supported_action_spaces: Optional[Tuple[gym.spaces.Space, ...]] = None,
         old_policy: BasePolicy = None,
-        reuse_gamma: float = 0.95,
-        reuse_alpha: float = 0.05,
         reuse_phi: float = 1.0,
         reuse_mu: float = 0.95,
         max_reuse_steps: int = 500,
@@ -156,8 +158,6 @@ class OffPolicyAlgorithmPolicyReuse(BaseAlgorithm):
         self.use_sde_at_warmup = use_sde_at_warmup
         
         # Policy Reuse Parameters
-        self.reuse_gamma = reuse_gamma
-        self.reuse_alpha = reuse_alpha
         self.reuse_initial_phi = reuse_phi
         self.reuse_phi = reuse_phi
         self.reuse_mu = reuse_mu

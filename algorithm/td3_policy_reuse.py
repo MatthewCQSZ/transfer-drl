@@ -12,20 +12,22 @@ from stable_baselines3.common.type_aliases import GymEnv, MaybeCallback, Schedul
 from stable_baselines3.common.utils import get_parameters_by_name, polyak_update
 from stable_baselines3.td3.policies import CnnPolicy, MlpPolicy, MultiInputPolicy, TD3Policy
 
-from off_policy_algorithm_policy_reuse import OffPolicyAlgorithmPolicyReuse
+from .off_policy_algorithm_policy_reuse import OffPolicyAlgorithmPolicyReuse
 
 SelfTD3PolicyReuse = TypeVar("SelfTD3PolicyReuse", bound="TD3PolicyReuse")
 
 
 class TD3PolicyReuse(OffPolicyAlgorithmPolicyReuse):
     """
-    Twin Delayed DDPG (TD3)
+    Twin Delayed DDPG (TD3) with Probabilistic Policy Reuse
     Addressing Function Approximation Error in Actor-Critic Methods.
 
     Original implementation: https://github.com/sfujim/TD3
     Paper: https://arxiv.org/abs/1802.09477
     Introduction to TD3: https://spinningup.openai.com/en/latest/algorithms/td3.html
-
+    Original paper on Probabilistic Policy Reuse
+    https://www.cs.cmu.edu/~mmv/papers/06aamas-policy-reuse.pdf 
+    
     :param policy: The policy model to use (MlpPolicy, CnnPolicy, ...)
     :param env: The environment to learn from (if registered in Gym, can be str)
     :param learning_rate: learning rate for adam optimizer,
@@ -61,6 +63,10 @@ class TD3PolicyReuse(OffPolicyAlgorithmPolicyReuse):
     :param device: Device (cpu, cuda, ...) on which the code should be run.
         Setting it to auto, the code will be run on the GPU if possible.
     :param _init_setup_model: Whether or not to build the network at the creation of the instance
+    :param old_policy: Teacher policy to be transfered in Policy Reuse.
+    :param reuse_phi: Initial probability to use old policy, diminishing over steps.
+    :param reuse_mu: Mu value for Policy Reuse, determines the decay of the probability to use old policy.
+    :param max_reuse_steps: Maximum number of steps per iteration to run Policy Reuse.
     """
 
     policy_aliases: Dict[str, Type[BasePolicy]] = {
@@ -95,8 +101,6 @@ class TD3PolicyReuse(OffPolicyAlgorithmPolicyReuse):
         device: Union[th.device, str] = "auto",
         _init_setup_model: bool = True,
         old_policy: TD3Policy = None,
-        reuse_gamma: float = 0.95,
-        reuse_alpha: float = 0.05,
         reuse_phi: float = 1.0,
         reuse_mu: float = 0.95,
         max_reuse_steps: int = 500,

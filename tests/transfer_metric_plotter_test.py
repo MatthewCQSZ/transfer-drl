@@ -5,7 +5,7 @@ and no longer a unit test.
 """
 
 import unittest
-from utils.transfer_metric_plotter import *
+from ..transfer_metric_plotter import *
 
 
 
@@ -26,7 +26,7 @@ class TransferMetricPlotterTester(unittest.TestCase):
         to make sure that the list is not empty since we know the logdirs are valid.
         """
         logdirs = ['../report_log/default_log_Nov17_lift_noshaping/Lift_Panda_SEED69/SAC/',
-                   '../report_log/default_log_Nov25_Lift_vanilla_sac/BaseLift_Panda_SEED69/SAC']
+                   '../report_log/default_log_Nov25_Lift_vanilla_sac/BaseLift_Panda_SEED69/SAC/']
         sample_count = 1140000
         result = get_all_datasets(logdirs, None, None, None, sample_count)
         self.assertTrue(type(result) == list and len(result) != 0)  # add assertion here
