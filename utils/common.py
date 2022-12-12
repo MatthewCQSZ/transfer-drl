@@ -63,7 +63,7 @@ def ____call__(self):
     return GymWrapper(self.env)
 GymWrapper.__call__ = ____call__
 
-def make_env(env_name:str, robot: str, seed:int) -> Monitor:
+def make_env(env_name:str, robot: str, seed:int, no_reward_shaping:bool=False) -> Monitor:
     '''
     Make DRL-Gym environment.
     
@@ -71,6 +71,7 @@ def make_env(env_name:str, robot: str, seed:int) -> Monitor:
     :params robot: name for the robot "Panda", "Sawyer", "LBR IIWA 7", "Jaco", "Kinova Gen3", "UR5e".
     :params seed: random seed.
     '''
+    DEFAULT_CONFIG["reward_shaping"] = not no_reward_shaping
     env = robosuite.make(env_name, robots=robot, **DEFAULT_CONFIG)
     env = Monitor(GymWrapper(env))
     env.seed(seed)

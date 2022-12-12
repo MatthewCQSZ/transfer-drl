@@ -27,6 +27,7 @@ class TransferDRLGym:
     :params mu: parameter mu in Policy Reuse.
     :params max_reuse_steps: maximum number of steps for per episode in Policy Reuse.
     :params seed: random seed.
+    :params no_reward_shaping: Set to False to use reward shaping.
     '''
     def __init__(
         self,
@@ -40,6 +41,7 @@ class TransferDRLGym:
         mu: float = 0.95,
         max_reuse_steps: int = 500,
         seed: int = 69,
+        no_reward_shaping: bool = False,
         ):
         
         self.logdir = logdir
@@ -52,13 +54,14 @@ class TransferDRLGym:
         self.mu = mu
         self.max_reuse_steps = max_reuse_steps
         self.seed = np.random.seed(seed)
+        self.no_reward_shaping = no_reward_shaping
         
     def make(self):
         '''
         Function to initialize environment and model for experiments.
         Must call before training.
         '''
-        self.env = make_env(self.env_name, self.robot, self.seed)
+        self.env = make_env(self.env_name, self.robot, self.seed, self.no_reward_shaping)
         self.model_path = f"{self.logdir}/{self.env_name}_{self.robot}_SEED{self.seed}/{self.algorithm}/"
         self.reuse_path = f"{self.reuse_logdir}/{self.env_name}_{self.robot}_SEED{self.seed}/{self.algorithm}/"
 
@@ -166,6 +169,8 @@ if __name__ == "__main__":
                         help="maximum number of steps for per episode in Policy Reuse.")
     parser.add_argument("--seed", type=int, default=69,
                         help="random seed.")
+    parser.add_argument('--no_reward_shaping', dest='no_reward_shaping', action='store_true', default=False,
+                        help="turn off reward shaping.")
     parser.add_argument('--train', dest='train', action='store_true', default=False,
                         help="set for training.")
     parser.add_argument('--video', dest='video', action='store_true', default=False,
