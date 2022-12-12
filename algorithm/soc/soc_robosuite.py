@@ -7,7 +7,6 @@ from distutils.util import strtobool
 
 import gym
 import numpy as np
-import pybullet_envs  # noqa
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -61,9 +60,10 @@ def parse_args():
         help="whether to capture videos of the agent performances (check out `videos` folder)")
 
     # Algorithm specific arguments
-    parser.add_argument("--env-id", type=str, default="LiftWithTerminals",
+    parser.add_argument("--env-id", type=str, default="BaseLift",
         help="the id of the environment")
-    parser.add_argument("--robot", type = str, default="Panda")
+    parser.add_argument("--robot", type = str, default="Panda",
+        help="robot for the experiment")
     parser.add_argument("--total-timesteps", type=int, default=1250000,
         help="total timesteps of the experiments")
     parser.add_argument("--buffer-size", type=int, default=int(1e6),
@@ -108,21 +108,6 @@ def parse_args():
     args = parser.parse_args()
     # fmt: on
     return args
-
-
-def make_env(env_id, seed, idx, capture_video, run_name):
-    def thunk():
-        env = gym.make(env_id)
-        env = gym.wrappers.RecordEpisodeStatistics(env)
-        if capture_video:
-            if idx == 0:
-                env = gym.wrappers.RecordVideo(env, f"videos/{run_name}")
-        env.seed(seed)
-        env.action_space.seed(seed)
-        env.observation_space.seed(seed)
-        return env
-
-    return thunk
 
 #Logic for high-level option Q-Network
 class Option2QNetwork(nn.Module):
@@ -272,23 +257,85 @@ class Actor(nn.Module):
         return action, log_prob, mean
     
 
-if __name__ == "__main__":
+def train_SOC(output_path: str = "default_log/",
+              torch_deterministic: lambda x: bool(strtobool(x)) = True,
+              cuda: lambda x: bool(strtobool(x)) = True,
+              wandb_project_name: str = "cleanRL",
+              wandb_entity: str = None,
+              track: bool = True,
+              seed: int = 69,  
+              video: bool = False,
+              env_id: str = "BaseLift",
+              robot: str = "Panda",
+              total_timesteps: int = 1_000_000,
+              buffer_size: int = 1_000_000,
+              gamma: float = 0.99,
+              tau: float = 0.005,
+              batch_size: int = 256,
+              exploration_noise: float = 0.1,
+              learning_starts: int = 5_000, #5e3
+              policy_lr: float = 3e-4,
+              q_lr: float = 1e-3,
+              qHigh_lr: float = 3e-4,
+              term_lr: float = 3e-4,
+              policy_frequency: int = 2,
+              target_network_frequency: int = 1,
+              noise_clip: float = 0.5,
+              alpha: float = 0.2,
+              autotune: lambda x:bool(strtobool(x)) = True,
+              num_options: int = 2,
+              eps_steps: int = 200000,
+              terminal_eps: float = 0.2,
+              termination_reg: float = 0.01,
+              ):
+    '''
+    Train on a Robosuite environment using SOC algorithm.
+    
+    :params output_path: Directory to the output
+    :params torch_deterministic: If toggled, `torch.backends.cudnn.deterministic=False`
+    :params cuda: If toggled, cuda will be enabled by default
+    :params wandb_project_name: The wandb's project name
+    :params wandb_entity: The entity (team) of wandb's project
+    :params track: If True, this experiment will be tracked with Weights and Biases
+    :params seed: Seed of the experiment
+    :params video: Whether to capture videos of the agent performances
+    :params env_id: ID for the environment
+    :params robot: Robot for the experiment
+    :params total_timesteps: Total timesteps of the experiments
+    :params buffer_size: The replay memory buffer size
+    :params gamma: The discount factor gamma
+    :params tau: Target smoothing coefficient
+    :params batch_size: The batch size of sample from the reply memory
+    :params exploration_noise: The scale of exploration noise
+    :params learning_starts: Timestep to start learning
+    :params policy_lr: The learning rate of the policy network optimizer
+    :params q_lr: The learning rate of the Q network network optimizer
+    :params qHigh_lr: The learning rate of the Q network network optimizer
+    :params term_lr: The learning rate of the Q network network optimizer
+    :params policy_frequency: The frequency of training policy (delayed)
+    :params target_network_frequency: The frequency of updates for the target nerworks
+    :params noise_clip: Noise clip parameter of the Target Policy Smoothing Regularization
+    :params alpha: Entropy regularization coefficient
+    :params autotune: Automatic tuning of the entropy coefficient
+    :params num_options: Number of options
+    :params eps_steps: Over how many steps to decay random option epsilon
+    :params terminal_eps: Minimum random option epsilon
+    :params termination_reg: Penalty for termination an option, promotes continuity
+    '''
     curr_ep_return = 0
     curr_ep_length = 0
-    args = parse_args()
-    run_name = f"{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}"
+    run_name = output_path
     running_mean_ep_length = 10
     running_mean_ep_count = 0
     running_mean_episodic_reward = np.zeros((running_mean_ep_length))
     best_mean_reward = -99999999999.0
-    if args.track:
+    if track:
         import wandb
 
         wandb.init(
-            project=args.wandb_project_name,
-            entity=args.wandb_entity,
+            project=wandb_project_name,
+            entity=wandb_entity,
             sync_tensorboard=True,
-            config=vars(args),
             name=run_name,
             monitor_gym=True,
             save_code=True,
@@ -296,60 +343,58 @@ if __name__ == "__main__":
     writer = SummaryWriter(f"runs/{run_name}")
     model_output_folder = f"saved_best_models/{run_name}"
     os.mkdir(model_output_folder)
-    writer.add_text(
-        "hyperparameters",
-        "|param|value|\n|-|-|\n%s" % ("\n".join([f"|{key}|{value}|" for key, value in vars(args).items()])),
-    )
+    #writer.add_text(
+    #    "hyperparameters",
+    #    "|param|value|\n|-|-|\n%s" % ("\n".join([f"|{key}|{value}|" for key, value in vars(args).items()])),
+    #)
 
     # TRY NOT TO MODIFY: seeding
-    random.seed(args.seed)
-    np.random.seed(args.seed)
-    torch.manual_seed(args.seed)
-    torch.backends.cudnn.deterministic = args.torch_deterministic
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.backends.cudnn.deterministic = torch_deterministic
 
-    device = torch.device("cuda" if torch.cuda.is_available() and args.cuda else "cpu")
+    device = torch.device("cuda" if torch.cuda.is_available() and cuda else "cpu")
 
     # env setup
-
-    #envs = gym.vector.SyncVectorEnv([make_env(args.env_id, args.seed, 0, args.capture_video, run_name)])
-    envs = suite.make(args.env_id, robots = args.robot, **DEFAULT_CONFIG)
+    envs = suite.make(env_id, robots = robot, **DEFAULT_CONFIG)
     envs = GymWrapper(envs)
     #assert isinstance(envs.single_action_space, gym.spaces.Box), "only continuous action space is supported"
 
-    actor = Actor(envs, args.num_options, device = device).to(device)
-    qf1 = SoftQNetwork(envs, args.num_options, device = device).to(device)
-    qf2 = SoftQNetwork(envs, args.num_options, device = device).to(device)
-    qf1_target = SoftQNetwork(envs, args.num_options, device = device).to(device)
-    qf2_target = SoftQNetwork(envs, args.num_options, device = device).to(device)
+    actor = Actor(envs, num_options, device = device).to(device)
+    qf1 = SoftQNetwork(envs, num_options, device = device).to(device)
+    qf2 = SoftQNetwork(envs, num_options, device = device).to(device)
+    qf1_target = SoftQNetwork(envs, num_options, device = device).to(device)
+    qf2_target = SoftQNetwork(envs, num_options, device = device).to(device)
     qf1_target.load_state_dict(qf1.state_dict())
     qf2_target.load_state_dict(qf2.state_dict())
-    q_optimizer = optim.Adam(list(qf1.parameters()) + list(qf2.parameters()), lr=args.q_lr)
-    actor_optimizer = optim.Adam(list(actor.parameters()), lr=args.policy_lr)
+    q_optimizer = optim.Adam(list(qf1.parameters()) + list(qf2.parameters()), lr=q_lr)
+    actor_optimizer = optim.Adam(list(actor.parameters()), lr=policy_lr)
 
-    termNet = OptionTermNet(envs, args.num_options).to(device)
-    termNet_target = OptionTermNet(envs, args.num_options).to(device)
+    termNet = OptionTermNet(envs, num_options).to(device)
+    termNet_target = OptionTermNet(envs, num_options).to(device)
     termNet_target.load_state_dict(termNet.state_dict())
-    term_optimizer = optim.Adam(termNet.parameters(), lr = args.term_lr)
-    qHigh = Option2QNetwork(envs, args.num_options).to(device)
-    qHigh_target = Option2QNetwork(envs, args.num_options).to(device)
+    term_optimizer = optim.Adam(termNet.parameters(), lr = term_lr)
+    qHigh = Option2QNetwork(envs, num_options).to(device)
+    qHigh_target = Option2QNetwork(envs, num_options).to(device)
     qHigh_target.load_state_dict(qHigh.state_dict())
-    qHigh_optimizer = optim.Adam(qHigh.parameters(), lr = args.qHigh_lr)
+    qHigh_optimizer = optim.Adam(qHigh.parameters(), lr = qHigh_lr)
 
-    option_prop_sum = np.zeros((args.num_options), dtype=np.float32)
+    option_prop_sum = np.zeros((num_options), dtype=np.float32)
     eps = 1.0
 
     # Automatic entropy tuning
-    if args.autotune:
+    if autotune:
         target_entropy = -torch.prod(torch.Tensor(envs.action_space.shape).to(device)).item()
         log_alpha = torch.zeros(1, requires_grad=True, device=device)
         alpha = log_alpha.exp().item()
-        a_optimizer = optim.Adam([log_alpha], lr=args.q_lr)
+        a_optimizer = optim.Adam([log_alpha], lr=q_lr)
     else:
-        alpha = args.alpha
+        alpha = alpha
 
     envs.observation_space.dtype = np.float32
     rb = OptionReplayBuffer(
-        args.buffer_size,
+        buffer_size,
         envs.observation_space,
         envs.action_space,
         device,
@@ -364,15 +409,15 @@ if __name__ == "__main__":
     greedy_options = qHigh.greedy_option(torch.Tensor(obs).to(device))
     option_termination = np.zeros((1,))
 
-    option_length = np.zeros((args.num_options))
-    option_end_count = np.zeros((args.num_options))
-    for global_step in range(args.total_timesteps):
+    option_length = np.zeros((num_options))
+    option_end_count = np.zeros((num_options))
+    for global_step in range(total_timesteps):
         # ALGO LOGIC: put action logic here
-        eps = max(args.terminal_eps + (1.0 - args.terminal_eps) * (args.eps_steps - global_step) / args.eps_steps, args.terminal_eps)
-        if global_step < args.learning_starts:
+        eps = max(terminal_eps + (1.0 - terminal_eps) * (eps_steps - global_step) / eps_steps, terminal_eps)
+        if global_step < learning_starts:
             actions = np.array([envs.action_space.sample() for _ in range(1)])
             #randomly choose options at early start
-            options = np.random.randint(0, args.num_options, size = 1, dtype=np.int32) 
+            options = np.random.randint(0, num_options, size = 1, dtype=np.int32) 
         else:
             options = qHigh.get_option(torch.Tensor(obs).to(device), options, option_termination, eps)
             actions, _, _ = actor.get_action(torch.Tensor(obs).to(device), options)
@@ -406,7 +451,7 @@ if __name__ == "__main__":
 
 
         batch_idx = np.arange((options.shape[0]))
-        for i in range(args.num_options):
+        for i in range(num_options):
             option_prop_sum[i] += np.sum(np.equal(options, i))
             option_length[i] += np.sum(np.equal(options, i))
             option_end_count[i] += np.sum(np.logical_and(option_termination[batch_idx, options], np.equal(options, i)))
@@ -427,8 +472,8 @@ if __name__ == "__main__":
 
 
         # ALGO LOGIC: training.
-        if global_step > args.learning_starts:
-            data = rb.sample(args.batch_size)
+        if global_step > learning_starts:
+            data = rb.sample(batch_size)
             with torch.no_grad():
                 termination_probs, termination_sample = termNet.get_terminations(data.observations)
                 terminations = termination_sample[np.arange(data.options.shape[0]), data.options]
@@ -437,7 +482,7 @@ if __name__ == "__main__":
                 qf1_next_target = qf1_target(data.next_observations, next_state_actions, next_state_options)
                 qf2_next_target = qf2_target(data.next_observations, next_state_actions, next_state_options)
                 min_qf_next_target = torch.min(qf1_next_target, qf2_next_target) - alpha * next_state_log_pi
-                next_q_value = data.rewards.flatten() + (1 - data.dones.flatten()) * args.gamma * (min_qf_next_target).view(-1)
+                next_q_value = data.rewards.flatten() + (1 - data.dones.flatten()) * gamma * (min_qf_next_target).view(-1)
 
                 #compute target for high-level Q learning:
                 batch_idx = np.arange(data.options.shape[0])
@@ -446,7 +491,7 @@ if __name__ == "__main__":
                 next_term_prob_prime = next_term_prob_prime[batch_idx, data.options]
                 no_term_value_target = (1.0 - next_term_prob_prime) * next_high_q_prime[batch_idx, data.options]
                 term_value_target = next_term_prob_prime * next_high_q_prime.max(dim=-1)[0]
-                high_q_gt = data.rewards.flatten() + (1 - data.dones.flatten()) * args.gamma * (term_value_target + no_term_value_target)
+                high_q_gt = data.rewards.flatten() + (1 - data.dones.flatten()) * gamma * (term_value_target + no_term_value_target)
 
             qf1_a_values = qf1(data.observations, data.actions, data.options).view(-1)
             qf2_a_values = qf2(data.observations, data.actions, data.options).view(-1)
@@ -468,9 +513,9 @@ if __name__ == "__main__":
             qf_loss.backward()
             q_optimizer.step()
 
-            if global_step % args.policy_frequency == 0:  # TD 3 Delayed update support
+            if global_step % policy_frequency == 0:  # TD 3 Delayed update support
                 for _ in range(
-                    args.policy_frequency
+                    policy_frequency
                 ):  # compensate for the delay by doing 'actor_update_interval' instead of 1
                     pi, log_pi, _ = actor.get_action(data.observations, data.options)
                     qf1_pi = qf1(data.observations, pi, data.options)
@@ -487,13 +532,13 @@ if __name__ == "__main__":
                     option_term_prob = option_term_prob[batch_idx, data.options]
                     qht, _, _ = qHigh_target(data.next_observations)
 
-                    term_loss = ((1 - data.dones.flatten()) * option_term_prob * (qht[batch_idx, data.options] - qht.max(dim=-1)[0] + args.termination_reg)).mean()
+                    term_loss = ((1 - data.dones.flatten()) * option_term_prob * (qht[batch_idx, data.options] - qht.max(dim=-1)[0] + termination_reg)).mean()
                     term_optimizer.zero_grad()
                     term_loss.backward()
                     term_optimizer.step()
 
 
-                    if args.autotune:
+                    if autotune:
                         with torch.no_grad():
                             _, log_pi, _ = actor.get_action(data.observations, data.options)
                         alpha_loss = (-log_alpha * (log_pi + target_entropy)).mean()
@@ -504,13 +549,13 @@ if __name__ == "__main__":
                         alpha = log_alpha.exp().item()
 
             # update the target networks
-            if global_step % args.target_network_frequency == 0:
+            if global_step % target_network_frequency == 0:
                 for param, target_param in zip(qf1.parameters(), qf1_target.parameters()):
-                    target_param.data.copy_(args.tau * param.data + (1 - args.tau) * target_param.data)
+                    target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
                 for param, target_param in zip(qf2.parameters(), qf2_target.parameters()):
-                    target_param.data.copy_(args.tau * param.data + (1 - args.tau) * target_param.data)
+                    target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
                 for param, target_param in zip(qHigh.parameters(), qHigh_target.parameters()):
-                    target_param.data.copy_(args.tau * param.data + (1 - args.tau) * target_param.data)
+                    target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
 
             if global_step % 100 == 0:
                 writer.add_scalar("losses/qf1_values", qf1_a_values.mean().item(), global_step)
@@ -526,13 +571,13 @@ if __name__ == "__main__":
                 writer.add_scalar("losses/term_loss", term_loss.item(), global_step)
 
                 prop_sum = np.sum(option_prop_sum)
-                for i in range(args.num_options):
+                for i in range(num_options):
                     writer.add_scalar("options/op_" + str(i) + "_proportion", option_prop_sum[i] / prop_sum, global_step)
                     writer.add_scalar("options/op_" + str(i) + "_mean_length", option_length[i] / option_end_count[i], global_step)
                 option_length *= 0
                 option_end_count *= 0
                 option_prop_sum *= 0
-                if args.autotune:
+                if autotune:
                     writer.add_scalar("losses/alpha_loss", alpha_loss.item(), global_step)
             if global_step % 2000 == 0:
                 avg_reward = np.mean(running_mean_episodic_reward)
@@ -547,3 +592,8 @@ if __name__ == "__main__":
 
     envs.close()
     writer.close()
+
+if __name__ == "__main__":
+    #args = parse_args()
+    #train_SOC(**vars(args))
+    pass

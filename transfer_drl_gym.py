@@ -5,7 +5,18 @@ from stable_baselines3.common.logger import configure
 from stable_baselines3.common.callbacks import CheckpointCallback, EvalCallback
 from utils.common import make_env, make_algorithm
 from utils.video_generation import generate_video
-from algorithm.soc.soc import train_SOC
+from algorithm.soc.soc_robosuite import train_SOC
+
+from robosuite.environments.base import register_env
+
+from environments.lift_base import BaseLift
+from environments.lift_and_place import LiftAndPlace
+from environments.lift_and_place_barrier import LiftAndPlaceBarrier
+
+
+register_env(LiftAndPlaceBarrier)
+register_env(BaseLift)
+register_env(LiftAndPlace)
 
 class TransferDRLGym:
     '''
@@ -28,6 +39,8 @@ class TransferDRLGym:
     :params max_reuse_steps: maximum number of steps for per episode in Policy Reuse.
     :params seed: random seed.
     :params no_reward_shaping: Set to False to use reward shaping.
+    :params num_options: Number of options
+    :params option_eps_steps: Over how many steps to decay random option epsilon
     '''
     def __init__(
         self,
@@ -42,6 +55,8 @@ class TransferDRLGym:
         max_reuse_steps: int = 500,
         seed: int = 69,
         no_reward_shaping: bool = False,
+        num_options: int = 2,
+        option_eps_steps: int = 200000,
         ):
         
         self.logdir = logdir
@@ -55,6 +70,8 @@ class TransferDRLGym:
         self.max_reuse_steps = max_reuse_steps
         self.seed = np.random.seed(seed)
         self.no_reward_shaping = no_reward_shaping
+        self.num_options = num_options
+        self.option_eps_steps = option_eps_steps
         
     def make(self):
         '''
@@ -73,7 +90,17 @@ class TransferDRLGym:
         Model checkpoints and weights are saved in "<logdir>/<env_name>_<robot>_SEED<seed>/<algorithm>/"
         '''
         if "SOC" in self.env:
-            train_SOC(self.model_path)
+            # Training with SOC is set up differently, refer to SOC documentation for details
+            train_SOC(
+                output_path = self.model_path,
+                seed = self.seed,  
+                env_id = self.env_name,
+                robot = self.robot,
+                total_timesteps = self.num_steps ,
+                buffer_size = self.buffer_size,
+                num_options = self.num_options,
+                eps_steps = self.option_eps_steps,
+              )
         else:
             self.model = make_algorithm(self.env, 
                                         self.algorithm, 
@@ -171,6 +198,10 @@ if __name__ == "__main__":
                         help="random seed.")
     parser.add_argument('--no_reward_shaping', dest='no_reward_shaping', action='store_true', default=False,
                         help="turn off reward shaping.")
+    parser.add_argument("--num_options", type=int, default=2,
+                        help="number of options")
+    parser.add_argument("--option_eps_steps", type=int, default=200000,
+                        help="Over how many steps to decay random option epsilon")
     parser.add_argument('--train', dest='train', action='store_true', default=False,
                         help="set for training.")
     parser.add_argument('--video', dest='video', action='store_true', default=False,

@@ -19,16 +19,7 @@ from algorithm.td3_policy_reuse import TD3PolicyReuse
 import robosuite
 from robosuite.wrappers.gym_wrapper import GymWrapper 
 from robosuite import load_controller_config
-from robosuite.environments.base import register_env
 
-from environments.lift_base import BaseLift
-from environments.lift_and_place import LiftAndPlace
-from environments.lift_and_place_barrier import LiftAndPlaceBarrier
-
-
-register_env(LiftAndPlaceBarrier)
-register_env(BaseLift)
-register_env(LiftAndPlace)
     
 
 # Default configuration for controller and environment, same for all environments
