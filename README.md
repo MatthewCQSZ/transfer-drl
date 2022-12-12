@@ -4,7 +4,7 @@ A library for Deep Reinforcement Learning and Transfer Learning.
 
 The library uses [Robosuite](https://robosuite.ai/) for environment implementation and [Stable Baseline 3](https://stable-baselines3.readthedocs.io/en/master/) for algorithm implementation.
 
-Please follow [installation instruction](install_instruction/) to set up Mujoco and Robosuite and install required package.
+Please follow the [installation instructions](install_instructions/) to set up Mujoco and Robosuite and install required package.
 
 To run experiments, simply
  
@@ -29,10 +29,29 @@ transfer_learning.train()
 transfer_learning.generate_video()
 ```
 
-Get Transfer Learning Evaluation Metric by running 
+### Transfer Learning Metric Plotter
+
+To use the transfer learning metric plotter (transfer_metric_plotter.py), you will need to fill out the following terminal
+arguments:
+1. --no_transfer_logdir with the directory path that contains your progress.csv file 
+for your RL agent trained without transfer learning (from scratch). 
+2. --transfer_logdir with the directory path of your progress.csv file for your agent 
+trained with transfer learning.
+3. --smooth with an integer value that is larger than 1 if you want to see a smoothed version of your rewards plot over your raw 
+rewards plot.
+4. --sample_count with an integer value of how many timesteps you would like displayed in the plot. This will cut the data of
+your reward plot to this value.
+5. --threshold with an integer value of the performance value where the agent is performing its trained task correctly.
+
+NOTE: Make sure there are these two labeled columns in your progress.csv file. 
+1. eval/mean_rewards
+2. time/total_timesteps
+
+Below is an example terminal command that ran the transfer metric plotter with data from our block lifting task with 
+and without using reward shaping.
 
 ```
-python transfer_metric_plotter.py --no_transfer_logdir ./report_log/default_log_Nov17_lift_noshaping/Lift_Panda_SEED69/SAC/ --transfer_logdir ./report_log/default_log_Nov25_Lift_vanilla_sac/BaseLift_Panda_SEED69/SAC/
+python transfer_metric_plotter.py --no_transfer_logdir ./report_log/default_log_Nov17_lift_noshaping/Lift_Panda_SEED69/SAC/ --transfer_logdir ./report_log/default_log_Nov25_Lift_vanilla_sac/BaseLift_Panda_SEED69/SAC/ --smooth 4 --sample_count 1140000 --threshold 350
 ```
 
 For help, run

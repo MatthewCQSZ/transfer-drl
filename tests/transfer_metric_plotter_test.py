@@ -5,8 +5,7 @@ and no longer a unit test.
 """
 
 import unittest
-from ..transfer_metric_plotter import *
-
+from transfer_metric_plotter import *
 
 
 class TransferMetricPlotterTester(unittest.TestCase):
