@@ -34,7 +34,7 @@ Here are the common instructions for setting up robosuite and robosuite-benchmar
  -2.22862221e-05]
  ```
 
-#**#Mujoco is installed successfully**
+**#Mujoco is installed successfully**
 
 11. You can follow MuJoCo's instructions to test out simulating one of the preloaded MuJoCo models such as humanoid-100.xml. Follow the Getting Started section of the instructions to find
 the command, https://mujoco.readthedocs.io/en/latest/programming.html#getting-started. 
