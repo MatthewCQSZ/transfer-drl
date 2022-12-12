@@ -13,6 +13,9 @@ def tb_log_to_writer(logdir, key, files_dictionary):
     writer.close()
 
 def tb_log_from_csv(runs_path, logdir):
+    '''
+    Generate tensorboard plot from csv files. EXTREMELY SLOW
+    '''
     csv_files = glob.glob(f"{runs_path}**/**/*.csv")
     csv_files_dictionaries = {f.split('/')[-2]: list(DictReader(open(f))) for f in csv_files}
     

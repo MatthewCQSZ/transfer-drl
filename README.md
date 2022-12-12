@@ -4,7 +4,7 @@ A library for Deep Reinforcement Learning and Transfer Learning.
 
 The library uses [Robosuite](https://robosuite.ai/) for environment implementation and [Stable Baseline 3](https://stable-baselines3.readthedocs.io/en/master/) for algorithm implementation.
 
-Please follow the [installation instructions](install_instructions/) to set up Mujoco and Robosuite and install required package.
+Please follow [installation instruction](install_instruction/) to set up Mujoco and install required package.
 
 To run experiments, simply
  
