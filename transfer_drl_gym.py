@@ -111,14 +111,16 @@ class TransferDRLGym:
                                         self.reuse_path)
             
             logger = configure(self.model_path, ["stdout", "csv", "tensorboard"])
-            eval_callback = EvalCallback(self.model_path, best_model_save_path=self.model_path,
-                                log_path=self.model_path, eval_freq=500,
-                                deterministic=True, render=False)
+            eval_callback = EvalCallback(eval_env=self.env, 
+                                         log_path=self.model_path, 
+                                         best_model_save_path=self.model_path,
+                                         eval_freq=500,
+                                         deterministic=True, render=False)
             checkpoint_callback = CheckpointCallback(save_freq=100000, 
-                                                save_path=self.model_path,
-                                                name_prefix="rl_model",
-                                                save_replay_buffer=False,
-                                                save_vecnormalize=False)
+                                                     save_path=self.model_path,
+                                                     name_prefix="rl_model",
+                                                     save_replay_buffer=False,
+                                                     save_vecnormalize=False)
             
             self.model.set_random_seed(seed=self.seed)
             self.model.set_logger(logger)
