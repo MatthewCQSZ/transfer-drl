@@ -38,7 +38,7 @@ class TransferAlgorithmTester(unittest.TestCase):
         self.transfer_learning = TransferDRLGym(logdir="./tests/test_log", algorithm = "SACPolicyReuse", num_steps = 2000)
         self.transfer_learning.make()
         # Use one of our pre-trained policy for reuse
-        self.transfer_learning.reuse_path = "./report_log/default_log_Nov25_Lift_vanilla_sac/BaseLift_Panda_SEED69/SAC/"
+        self.transfer_learning.reuse_path = "../report_log/default_log_Nov25_Lift_vanilla_sac/BaseLift_Panda_SEED69/SAC/"
         print(f"\nTesting training on {self.transfer_learning.env_name} with {self.transfer_learning.algorithm}, this may take a few minutes...")
         self.transfer_learning.train()
         self.assertTrue(os.path.isfile(f"{self.transfer_learning.model_path}best_model.zip"))

@@ -14,7 +14,7 @@ class TransferMetricPlotterTester(unittest.TestCase):
         This will test get_datasets function to verify that the return of the function is a list and another check
         to make sure that the list is not empty since we know the logdir is valid.
         """
-        logdir = './report_log/default_log_Nov17_lift_noshaping/Lift_Panda_SEED69/SAC/'
+        logdir = '../report_log/default_log_Nov17_lift_noshaping/Lift_Panda_SEED69/SAC/'
         sample_count = 1140000
         result = get_datasets(logdir, None, sample_count)
         self.assertTrue(type(result) == list and len(result) != 0)  # add assertion here
@@ -24,8 +24,8 @@ class TransferMetricPlotterTester(unittest.TestCase):
         This will test get_all_datasets function to verify that the return of the function is a list and another check
         to make sure that the list is not empty since we know the logdirs are valid.
         """
-        logdirs = ['./report_log/default_log_Nov17_lift_noshaping/Lift_Panda_SEED69/SAC/',
-                   './report_log/default_log_Nov25_Lift_vanilla_sac/BaseLift_Panda_SEED69/SAC/']
+        logdirs = ['../report_log/default_log_Nov17_lift_noshaping/Lift_Panda_SEED69/SAC/',
+                   '../report_log/default_log_Nov25_Lift_vanilla_sac/BaseLift_Panda_SEED69/SAC/']
         sample_count = 1140000
         result = get_all_datasets(logdirs, None, None, None, sample_count)
         self.assertTrue(type(result) == list and len(result) != 0)  # add assertion here

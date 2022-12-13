@@ -16,3 +16,12 @@ python transfer_metric_plotter_test.py
 ````
 
 2. The results of the unit test should be 2 passed tests.
+
+## Running Transfer DRL Gym Unit Test
+
+1. This file can be run from an IDE or from a terminal by running the following from this directory:
+````
+python transfer_drl_gym_test.py
+````
+
+2. The results of the unit test should be 3 passed tests.
