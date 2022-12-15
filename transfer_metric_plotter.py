@@ -43,27 +43,57 @@ def plot_transfer_metrics(data, xaxis='time/total_timesteps', value="Performance
         data2 = pd.concat(data2, ignore_index=True)
 
     # Jumpstart Performance Metric Line plot
-    line = sns.lineplot(data=data2.loc[data2['time/total_timesteps'] == 500], x=xaxis, y=value,
-                        color='red', palette='bright', legend=False, style='time/total_timesteps',
-                        markers=True, dashes=False, estimator=None, linewidth='2.5')
-    line.annotate('Jumpstart', xy=(0, 10), color='red')
+    jumpstart_no_transfer_data = data2.loc[data2['Condition1'] == 'No_Transfer_Method']
+    jumpstart_transfer_data = data2.loc[data2['Condition1'] == 'Transfer_Method']
 
-    jumpstart_data = data2.loc[data2['time/total_timesteps'] == 500]
-    transfer_jumpstart_perf = list(jumpstart_data.loc[jumpstart_data['Condition1'] == 'Transfer_Method'][value])[0] - \
-                              list(jumpstart_data.loc[jumpstart_data['Condition1'] == 'No_Transfer_Method'][value])[0]
+    # Find the first timestep from transfer and no transfer data
+    first_timestep_no_transfer = jumpstart_no_transfer_data.iloc[0]['time/total_timesteps']
+    first_timestep_transfer = jumpstart_transfer_data.iloc[0]['time/total_timesteps']
+    if first_timestep_no_transfer != first_timestep_transfer:
+        first_timestep = first_timestep_transfer
+    else:
+        first_timestep = first_timestep_transfer
+
+    # Find the value from transfer and no transfer data at the first timestep
+    first_value_no_transfer = jumpstart_no_transfer_data.iloc[0][value]
+    first_value_transfer = jumpstart_transfer_data.iloc[0][value]
+
+    # Plot the jumpstart performance line
+    line = sns.lineplot(data=[[first_timestep_no_transfer, first_value_no_transfer], [first_timestep_transfer, first_value_transfer]],
+                        x=[first_timestep_no_transfer, first_timestep_transfer], y=[first_value_no_transfer, first_value_transfer],
+                        color='red', palette='bright', legend=False, markers=True, dashes=False, estimator=None, linewidth='2.5')
+    line.annotate('Jumpstart', xy=(first_timestep, first_value_transfer), color='red')
+
+    # Add jumpstart performance metric to dataframe and print to terminal
+    transfer_jumpstart_perf = first_value_transfer - first_value_no_transfer
     print('Jumpstart Performance: ', transfer_jumpstart_perf)
     transfer_metrics_dataframe.at[2, 'Jumpstart Performance'] = transfer_jumpstart_perf
 
     # Asymptotic Performance Metric Line plot
-    last_timestep = data2.tail(1)['time/total_timesteps']
-    last_value = data2.tail(1)[value]
-    line2 = sns.lineplot(data=data2.loc[data2['time/total_timesteps'] == last_timestep.iloc[0]], x=xaxis, y=value,
-                         color='red', palette='bright', legend=False, style='time/total_timesteps',
-                         markers=True, dashes=False, estimator=None, linewidth='2.5')
-    line2.annotate(' Asymptotic Performance', xy=(last_timestep.iloc[0], last_value.iloc[0]), color='red')
-    asymptotic_data = data2.loc[data2['time/total_timesteps'] == last_timestep.iloc[0]]
-    transfer_asymptotic_perf = list(asymptotic_data.loc[asymptotic_data['Condition1'] == 'Transfer_Method'][value])[0] - \
-                              list(asymptotic_data.loc[asymptotic_data['Condition1'] == 'No_Transfer_Method'][value])[0]
+    asym_perf_no_transfer_data = data2.loc[data2['Condition1'] == 'No_Transfer_Method']
+    asym_perf_transfer_data = data2.loc[data2['Condition1'] == 'Transfer_Method']
+
+    # find the last timestep from the no transfer and transfer method data
+    last_timestep_no_transfer = asym_perf_no_transfer_data.iloc[-1]['time/total_timesteps']
+    last_timestep_transfer = asym_perf_transfer_data.iloc[-1]['time/total_timesteps']
+    if last_timestep_no_transfer < last_timestep_transfer:
+        last_timestep = last_timestep_no_transfer
+    else:
+        last_timestep = last_timestep_transfer
+
+    # Find the performance value at the last timestep for the no transfer and transfer method data
+    last_value_no_transfer = asym_perf_no_transfer_data.iloc[-1][value]
+    last_value_transfer = asym_perf_transfer_data.iloc[-1][value]
+
+    # Plot asymptotic performance line
+    line2 = sns.lineplot(data=[[last_timestep_no_transfer, last_value_no_transfer], [last_timestep_transfer, last_value_transfer]],
+                         x=[last_timestep_no_transfer, last_timestep_transfer], y=[last_value_no_transfer, last_value_transfer],
+                         color='red', palette='bright', legend=False, markers=True, dashes=False,
+                         estimator=None, linewidth='2.5')
+    line2.annotate(' Asymptotic Performance', xy=(last_timestep, last_value_transfer), color='red')
+
+    # Print the asymptotic performance metric to terminal and save to dataframe
+    transfer_asymptotic_perf = last_value_transfer - last_value_no_transfer
     print('Asymptotic Performance: ', transfer_asymptotic_perf)
     transfer_metrics_dataframe.at[2, 'Asymptotic Performance'] = transfer_asymptotic_perf
 
