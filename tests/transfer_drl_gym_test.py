@@ -42,6 +42,7 @@ class TransferAlgorithmTester(unittest.TestCase):
         print(f"\nTesting training on {self.transfer_learning.env_name} with {self.transfer_learning.algorithm}, this may take a few minutes...")
         self.transfer_learning.train()
         self.assertTrue(os.path.isfile(f"{self.transfer_learning.model_path}best_model.zip"))
+    
         
 
 

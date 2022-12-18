@@ -4,9 +4,9 @@ A library for Deep Reinforcement Learning and Transfer Learning.
 
 The library uses [Robosuite](https://robosuite.ai/) for environment implementation and [Stable Baseline 3](https://stable-baselines3.readthedocs.io/en/master/) for algorithm implementation.
 
-Please follow [installation instruction](install_instructions/) to set up Mujoco and install required package.
+Please follow [installation instructions](install_instructions/) to set up Mujoco and install required package.
 
-### Base Library
+## Base Library
 
 To run experiments, simply
  
@@ -36,6 +36,25 @@ Plot for loss, return, entropy... can auto-generated during training. They can b
 ```
 tensorboard --logdir <logging_directory>
 ```
+
+### Using Our Algorithms
+
+You can use our Probabilistic Policy Reuse Algorithm, SAC Policy Reuse and TD3 Policy Reuse, directly by simply import and use them as Stable Baseline 3 algorithms. Like this: 
+
+```
+from algorithm.sac_policy_reuse import SACPolicyReuse
+
+reuse_path = "../report_log/default_log_Nov25_Lift_vanilla_sac/BaseLift_Panda_SEED69/SAC/"
+model = SAC.load(f"{reuse_path}best_model")
+model = SACPolicyReuse("MlpPolicy", 
+                        env, 
+                        verbose=1, 
+                        old_policy=model.policy,
+                       )
+model.learn()
+```
+
+Our Probabilistic Policy Reuse Algorithm, SAC Policy Reuse and TD3 Policy Reuse, extend our `OffPolicyAlgorithmPolicyReuse` class. In theory, any other SB3 off policy algorithm can extend our `OffPolicyAlgorithmPolicyReuse`, though it is not tested.
 
 ### Transfer Learning Metric Plotter
 

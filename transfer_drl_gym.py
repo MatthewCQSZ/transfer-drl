@@ -69,10 +69,11 @@ class TransferDRLGym:
         self.num_steps = num_steps
         self.mu = mu
         self.max_reuse_steps = max_reuse_steps
-        self.seed = np.random.seed(seed)
+        self.seed = seed
         self.no_reward_shaping = no_reward_shaping
         self.num_options = num_options
         self.option_eps_steps = option_eps_steps
+        
         
     def make(self):
         '''
@@ -90,7 +91,7 @@ class TransferDRLGym:
         algorithms ("PPO", "SAC", "TD3", "SOC", "SACPolicyReuse", "TD3PolicyReuse").
         Model checkpoints and weights are saved in "<logdir>/<env_name>_<robot>_SEED<seed>/<algorithm>/"
         '''
-        if "SOC" in self.env_name:
+        if "SOC" in self.algorithm:
             # Training with SOC is set up differently, refer to SOC documentation for details
             train_SOC(
                 output_path = self.model_path,

@@ -335,8 +335,8 @@ def train_SOC(output_path: str = "default_log/",
             monitor_gym=True,
             save_code=True,
         )
-    writer = SummaryWriter(f"runs/{run_name}")
-    model_output_folder = f"saved_best_models/{run_name}"
+    writer = SummaryWriter(f"{run_name}runs")
+    model_output_folder = f"{run_name}saved_best_models/"
     os.mkdir(model_output_folder)
     #writer.add_text(
     #    "hyperparameters",
