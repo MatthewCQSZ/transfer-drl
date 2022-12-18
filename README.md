@@ -74,4 +74,4 @@ python transfer_metric_plotter.py -h
 
 Unit tests can be found in the [/tests](tests) directory. Please run unit tests from within tests directory.
 If you receive a ModuleNotFoundError while running these tests 
-make sure that your PYTHONPATH is correct. Example: PYTHONPATH=.:/(PathToTransferDRLRepo)/transfer-drl-git/
+make sure that your PYTHONPATH is correct. Example: `PYTHONPATH=.:/(PathToTransferDRLRepo)/transfer-drl-git/`
