@@ -54,7 +54,7 @@ model = SACPolicyReuse("MlpPolicy",
 model.learn()
 ```
 
-Our Probabilistic Policy Reuse Algorithm, SAC Policy Reuse and TD3 Policy Reuse, extend our `OffPolicyAlgorithmPolicyReuse` class. In theory, any other SB3 off policy algorithm can extend our `OffPolicyAlgorithmPolicyReuse`, though it is not tested.
+Our Probabilistic Policy Reuse Algorithm, `SACPolicyReuse` and `TD3PolicyReuse`, extend our `OffPolicyAlgorithmPolicyReuse` class. In theory, any other SB3 off policy algorithm can extend our `OffPolicyAlgorithmPolicyReuse`, though it is not tested.
 
 ### Transfer Learning Metric Plotter
 
