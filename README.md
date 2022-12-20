@@ -39,7 +39,7 @@ tensorboard --logdir <logging_directory>
 
 ### Using Our Algorithms
 
-You can use our Probabilistic Policy Reuse Algorithm, SAC Policy Reuse and TD3 Policy Reuse, directly by simply import and use them as Stable Baseline 3 algorithms. Like this: 
+You can use our Probabilistic Policy Reuse Algorithm (original paper available at: [aamas-policy-reuse.pdf](https://www.cs.cmu.edu/~mmv/papers/06aamas-policy-reuse.pdf)), SAC Policy Reuse and TD3 Policy Reuse, directly, by simply import and use them as Stable Baseline 3 algorithms. Like this: 
 
 ```
 from algorithm.sac_policy_reuse import SACPolicyReuse
