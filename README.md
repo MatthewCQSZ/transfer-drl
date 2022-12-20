@@ -56,6 +56,8 @@ model.learn()
 
 Our Probabilistic Policy Reuse Algorithm, `SACPolicyReuse` and `TD3PolicyReuse`, extend our `OffPolicyAlgorithmPolicyReuse` class. In theory, any other SB3 off policy algorithm can extend our `OffPolicyAlgorithmPolicyReuse`, though it is not tested.
 
+You can also find our implementation of Soft Option-Critic [here](algorithm/soc/). 
+
 ### Transfer Learning Metric Plotter
 
 To use the transfer learning metric plotter (transfer_metric_plotter.py), you will need to fill out the following terminal
